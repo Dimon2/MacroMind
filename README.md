@@ -73,12 +73,68 @@ Recommended first implementation steps:
 Project structure (ingestion-first):
 
 - `main.py` - CLI entry point for running one/all crawlers
-- `src/ai_market_terminal/models.py` - `DataPoint` contract
-- `src/ai_market_terminal/crawlers/base.py` - crawler interface
-- `src/ai_market_terminal/crawlers/*` - phase 1 crawler stubs
+- `src/ai_market_terminal/models.py` - `DataPoint` contract (macro timeseries)
+- `src/ai_market_terminal/prediction_markets/` - Kalshi client, resolver, snapshots
+- `src/ai_market_terminal/db/` - Postgres connection, migrations, repository
+- `config/kalshi_watchlist.yaml` - allowlisted Kalshi series (US macro)
+- `src/ai_market_terminal/crawlers/*` - source crawlers
 - `src/ai_market_terminal/runner.py` - crawler registry and orchestration
 
-Run locally (from repo root):
+### Setup (Kalshi + Postgres)
+
+1. Start Postgres (example):
+
+```bash
+docker run -d --name postgres \
+  -e POSTGRES_USER=admin \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=market_db \
+  -p 5432:5432 pgvector/pgvector:pg17
+```
+
+2. Install dependencies and configure env (from repo root):
+
+```powershell
+pip install -r requirements.txt
+copy .env.example .env
+```
+
+3. Apply migrations:
+
+```powershell
+$env:PYTHONPATH="src"
+python -m ai_market_terminal.db.migrate
+```
+
+Or via main: `python main.py --migrate --crawler kalshi`
+
+4. Ingest Kalshi prediction markets:
+
+```powershell
+$env:PYTHONPATH="src"
+python main.py --crawler kalshi --persist
+```
+
+Preview without DB write:
+
+```powershell
+python main.py --crawler kalshi
+```
+
+5. Verify data in Postgres:
+
+```bash
+docker exec -it postgres psql -U admin -d market_db -c "
+SELECT s.macro_topic, e.event_ticker, m.outcome_label, o.yes_probability
+FROM pm_observations o
+JOIN pm_markets m USING (platform, market_ticker)
+JOIN pm_events e USING (platform, event_ticker)
+JOIN pm_series s ON s.platform = e.platform AND s.series_ticker = e.series_ticker
+WHERE o.period_date = CURRENT_DATE
+ORDER BY 1, 2;"
+```
+
+Run locally (legacy macro crawlers):
 
 - PowerShell: `$env:PYTHONPATH="src"; python main.py --crawler all`
 - Or one crawler: `$env:PYTHONPATH="src"; python main.py --crawler fred`

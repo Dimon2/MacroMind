@@ -13,4 +13,3 @@ class BaseCrawler(ABC):
     def fetch(self, config: dict[str, Any]) -> list[DataPoint]:
         """Fetch data points from a source."""
         raise NotImplementedError
-

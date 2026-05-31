@@ -1,0 +1,24 @@
+# Minimal US macro allowlist (5 series, no duplicates).
+
+series:
+  - series_ticker: KXFEDDECISION
+    macro_topic: fed
+    slug: fed-meeting
+    markets:
+      mode: all
+
+  - series_ticker: KXCPIYOY
+    macro_topic: inflation
+    slug: inflation
+
+  - series_ticker: KXGDP
+    macro_topic: gdp
+    slug: us-gdp-growth
+
+  - series_ticker: KXUSNFP
+    macro_topic: employment
+    slug: us-nonfarm-payrolls-in-month
+
+  - series_ticker: KXU3
+    macro_topic: employment
+    slug: unemployment

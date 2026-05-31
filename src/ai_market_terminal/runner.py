@@ -10,6 +10,7 @@ from ai_market_terminal.crawlers import (
     PolymarketCrawler,
 )
 from ai_market_terminal.models import DataPoint
+from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
 
 
 class CrawlerRunner:
@@ -42,4 +43,14 @@ class CrawlerRunner:
         for crawler_name in self.list_crawlers():
             result[crawler_name] = self.run_one(crawler_name, cfgs.get(crawler_name, {}))
         return result
+
+    def fetch_kalshi_snapshots(
+        self, config: dict[str, Any] | None = None
+    ) -> list[PredictionMarketSnapshot]:
+        crawler = self._registry["kalshi"]
+        return crawler.fetch_snapshots(config)
+
+    def persist_kalshi(self, config: dict[str, Any] | None = None) -> int:
+        crawler = self._registry["kalshi"]
+        return crawler.persist(config)
 
