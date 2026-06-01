@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--persist",
         action="store_true",
-        help="Persist crawler output to Postgres (kalshi prediction markets)",
+        help="Persist crawler output to Postgres (kalshi or fred)",
     )
     parser.add_argument(
         "--migrate",
@@ -43,27 +43,13 @@ def main() -> None:
 
     runner = CrawlerRunner()
 
-    if args.crawler == "kalshi" and args.persist:
-        count = runner.persist_kalshi()
+    persist_handlers = {
+        "kalshi": runner.persist_kalshi,
+        "fred": runner.persist_fred,
+    }
+    if args.persist and args.crawler in persist_handlers:
+        count = persist_handlers[args.crawler]()
         print(json.dumps({"persisted": count}, indent=2))
-        return
-
-    if args.crawler == "kalshi":
-        snapshots = runner.fetch_kalshi_snapshots()
-        serializable = [
-            {
-                "series_ticker": s.series_ticker,
-                "event_ticker": s.event_ticker,
-                "market_ticker": s.market_ticker,
-                "macro_topic": s.macro_topic,
-                "outcome_label": s.outcome_label,
-                "yes_probability": s.yes_probability,
-                "period_date": s.period_date.isoformat(),
-                "url": s.url,
-            }
-            for s in snapshots
-        ]
-        print(json.dumps(serializable, indent=2))
         return
 
     if args.crawler == "all":

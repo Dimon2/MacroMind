@@ -14,6 +14,7 @@ load_dotenv(_REPO_ROOT / ".env")
 class Settings:
     database_url: str
     kalshi_api_base: str
+    fred_api_key: str
     repo_root: Path
 
     @classmethod
@@ -27,6 +28,7 @@ class Settings:
                 "KALSHI_API_BASE",
                 "https://external-api.kalshi.com/trade-api/v2",
             ).rstrip("/"),
+            fred_api_key=os.getenv("FRED_API_KEY", "").strip(),
             repo_root=_REPO_ROOT,
         )
 

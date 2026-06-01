@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from dataclasses import asdict
 from typing import Any
 
 from ai_market_terminal.crawlers.base import BaseCrawler
@@ -16,9 +17,27 @@ class KalshiCrawler(BaseCrawler):
     name = "kalshi"
 
     def fetch(self, config: dict[str, Any]) -> list[DataPoint]:
-        """Legacy interface: returns empty list; use fetch_snapshots + persist."""
-        self.fetch_snapshots(config)
-        return []
+        return [self._snapshot_to_datapoint(s) for s in self.fetch_snapshots(config)]
+
+    @staticmethod
+    def _snapshot_to_datapoint(snapshot: PredictionMarketSnapshot) -> DataPoint:
+        meta = asdict(snapshot)
+        meta.pop("yes_probability", None)
+        meta.pop("period_date", None)
+        meta.pop("fetched_at", None)
+        meta.pop("platform", None)
+        meta.pop("market_ticker", None)
+        if meta.get("event_close_at") is not None:
+            meta["event_close_at"] = snapshot.event_close_at.isoformat()
+        return DataPoint(
+            source=snapshot.platform,
+            indicator=snapshot.market_ticker,
+            value=snapshot.yes_probability,
+            unit=snapshot.unit_hint or "probability",
+            period=snapshot.period_date.isoformat(),
+            fetched_at=snapshot.fetched_at,
+            metadata=meta,
+        )
 
     def fetch_snapshots(
         self, config: dict[str, Any] | None = None

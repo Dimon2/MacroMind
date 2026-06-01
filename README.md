@@ -75,10 +75,13 @@ Project structure (ingestion-first):
 - `main.py` - CLI entry point for running one/all crawlers
 - `src/ai_market_terminal/models.py` - `DataPoint` contract (macro timeseries)
 - `src/ai_market_terminal/prediction_markets/` - Kalshi client, resolver, snapshots
+- `src/ai_market_terminal/macro/` - FRED client and watchlist loader
 - `src/ai_market_terminal/db/` - Postgres connection, migrations, repository
 - `config/kalshi_watchlist.yaml` - allowlisted Kalshi series (US macro)
+- `config/fred_series.yaml` - FRED Tier-1 macro series (13 indicators)
 - `src/ai_market_terminal/crawlers/*` - source crawlers
 - `src/ai_market_terminal/runner.py` - crawler registry and orchestration
+- `.cursor/rules/python-venv.mdc` + `.cursor/hooks/venv-guard.ps1` - agent uses `.venv` for Python/pip
 
 ### Setup (Kalshi + Postgres)
 
@@ -92,10 +95,11 @@ docker run -d --name postgres \
   -p 5432:5432 pgvector/pgvector:pg17
 ```
 
-2. Install dependencies and configure env (from repo root):
+2. Create venv, install dependencies, and configure env (from repo root):
 
 ```powershell
-pip install -r requirements.txt
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 copy .env.example .env
 ```
 
@@ -103,22 +107,22 @@ copy .env.example .env
 
 ```powershell
 $env:PYTHONPATH="src"
-python -m ai_market_terminal.db.migrate
+.\.venv\Scripts\python.exe -m ai_market_terminal.db.migrate
 ```
 
-Or via main: `python main.py --migrate --crawler kalshi`
+Or via main: `.\.venv\Scripts\python.exe main.py --migrate --crawler kalshi`
 
 4. Ingest Kalshi prediction markets:
 
 ```powershell
 $env:PYTHONPATH="src"
-python main.py --crawler kalshi --persist
+.\.venv\Scripts\python.exe main.py --crawler kalshi --persist
 ```
 
 Preview without DB write:
 
 ```powershell
-python main.py --crawler kalshi
+.\.venv\Scripts\python.exe main.py --crawler kalshi
 ```
 
 5. Verify data in Postgres:
@@ -134,10 +138,43 @@ WHERE o.period_date = CURRENT_DATE
 ORDER BY 1, 2;"
 ```
 
-Run locally (legacy macro crawlers):
+### Setup (FRED macro series)
 
-- PowerShell: `$env:PYTHONPATH="src"; python main.py --crawler all`
-- Or one crawler: `$env:PYTHONPATH="src"; python main.py --crawler fred`
+1. Add `FRED_API_KEY` to `.env` (free key from [FRED API](https://fred.stlouisfed.org/docs/api/api_key.html)).
+
+2. Apply migrations (includes `002_macro_tables.sql`):
+
+```powershell
+$env:PYTHONPATH="src"
+python -m ai_market_terminal.db.migrate
+```
+
+3. Ingest FRED series from `config/fred_series.yaml`:
+
+```powershell
+$env:PYTHONPATH="src"
+.\.venv\Scripts\python.exe main.py --crawler fred --persist
+```
+
+Preview without DB write:
+
+```powershell
+.\.venv\Scripts\python.exe main.py --crawler fred
+```
+
+4. Verify macro data in Postgres:
+
+```bash
+docker exec -it postgres psql -U admin -d market_db -c "
+SELECT series_id, observation_date, value, unit
+FROM macro_observations
+WHERE observation_date >= CURRENT_DATE - 7
+ORDER BY series_id, observation_date DESC;"
+```
+
+Run all crawlers (fred uses live API; others may still be stubs):
+
+- PowerShell: `$env:PYTHONPATH="src"; .\.venv\Scripts\python.exe main.py --crawler all`
 
 ## Success criteria for v1
 

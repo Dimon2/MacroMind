@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from datetime import date
+
 from ai_market_terminal.db.connection import connection_scope
+from ai_market_terminal.models import DataPoint
 from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
 
 
@@ -122,5 +125,66 @@ class PredictionMarketRepository:
                 snap.yes_ask,
                 snap.volume,
                 snap.fetched_at,
+            ),
+        )
+
+
+class MacroRepository:
+    def save_datapoints(self, datapoints: list[DataPoint]) -> int:
+        if not datapoints:
+            return 0
+
+        saved = 0
+        with connection_scope() as conn:
+            for dp in datapoints:
+                self._upsert_series(conn, dp)
+                self._upsert_observation(conn, dp)
+                saved += 1
+        return saved
+
+    def _upsert_series(self, conn, dp: DataPoint) -> None:
+        metadata = dp.metadata or {}
+        conn.execute(
+            """
+            INSERT INTO macro_series (
+              source, series_id, title, units, frequency, category, is_watched
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, TRUE)
+            ON CONFLICT (source, series_id) DO UPDATE SET
+              title = COALESCE(EXCLUDED.title, macro_series.title),
+              units = COALESCE(EXCLUDED.units, macro_series.units),
+              frequency = COALESCE(EXCLUDED.frequency, macro_series.frequency),
+              category = COALESCE(EXCLUDED.category, macro_series.category)
+            """,
+            (
+                dp.source,
+                dp.indicator,
+                metadata.get("title"),
+                dp.unit,
+                metadata.get("frequency") or metadata.get("frequency_short"),
+                metadata.get("category"),
+            ),
+        )
+
+    def _upsert_observation(self, conn, dp: DataPoint) -> None:
+        observation_date = date.fromisoformat(dp.period)
+        conn.execute(
+            """
+            INSERT INTO macro_observations (
+              source, series_id, observation_date, value, unit, fetched_at
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+            ON CONFLICT (source, series_id, observation_date) DO UPDATE SET
+              value = EXCLUDED.value,
+              unit = EXCLUDED.unit,
+              fetched_at = EXCLUDED.fetched_at
+            """,
+            (
+                dp.source,
+                dp.indicator,
+                observation_date,
+                dp.value,
+                dp.unit,
+                dp.fetched_at,
             ),
         )

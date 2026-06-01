@@ -1,0 +1,38 @@
+---
+description: Use project .venv for Python, pip, and pytest — never global installs
+alwaysApply: true
+---
+
+# Python virtual environment (Windows)
+
+This repo uses a local venv at `.venv/`. Do not install packages into the system/user Python.
+
+A `beforeShellExecution` hook (`.cursor/hooks/venv-guard.ps1`) also prompts when bare `pip install` or `python main.py` would bypass the venv.
+
+## Shell commands
+
+Before `pip`, `python`, `pytest`, or running `main.py`:
+
+1. Prefer the venv interpreter directly (works without activating):
+   - `.\.venv\Scripts\python.exe`
+   - `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`
+2. Or activate first: `.\.venv\Scripts\Activate.ps1`
+
+## Rules
+
+- If `.venv` is missing, create it: `python -m venv .venv`, then `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`.
+- Never run bare `pip install` or `python -m pip install` without the venv path unless the user explicitly asks for a global install.
+- New dependencies go in `requirements.txt`; install only via `.\.venv\Scripts\python.exe -m pip install -r requirements.txt`.
+- For this project, set `PYTHONPATH=src` when running CLI (e.g. `.\.venv\Scripts\python.exe main.py`).
+
+## Examples
+
+```powershell
+# Good
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+$env:PYTHONPATH="src"; .\.venv\Scripts\python.exe main.py --crawler fred
+
+# Bad
+pip install httpx
+python main.py --crawler fred
+```
