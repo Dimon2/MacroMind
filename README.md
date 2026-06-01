@@ -110,7 +110,9 @@ $env:PYTHONPATH="src"
 .\.venv\Scripts\python.exe -m ai_market_terminal.db.migrate
 ```
 
-Or via main: `.\.venv\Scripts\python.exe main.py --migrate --crawler kalshi`
+Migrate only: `.\.venv\Scripts\python.exe main.py --migrate`
+
+Migrate + ingest: `.\.venv\Scripts\python.exe main.py --migrate --crawler kalshi --persist`
 
 4. Ingest Kalshi prediction markets:
 
@@ -172,9 +174,18 @@ WHERE observation_date >= CURRENT_DATE - 7
 ORDER BY series_id, observation_date DESC;"
 ```
 
-Run all crawlers (fred uses live API; others may still be stubs):
+Persist FRED + Kalshi in one command:
 
-- PowerShell: `$env:PYTHONPATH="src"; .\.venv\Scripts\python.exe main.py --crawler all`
+```powershell
+$env:PYTHONPATH="src"
+.\.venv\Scripts\python.exe main.py --persist-all
+```
+
+Preview all crawlers (fred live API; market/nyfed/polymarket are stubs):
+
+```powershell
+.\.venv\Scripts\python.exe main.py --crawler all
+```
 
 ## Success criteria for v1
 
