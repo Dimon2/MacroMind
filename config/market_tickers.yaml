@@ -1,0 +1,37 @@
+# v1 market watchlist — Yahoo Finance via yfinance
+tickers:
+  - indicator: VIX
+    symbol: ^VIX
+    category: sentiment
+    unit: index
+  - indicator: DXY
+    symbol: DX-Y.NYB
+    fallback_symbol: UUP
+    category: fx
+    unit: index
+  - indicator: GOLD
+    symbol: GC=F
+    fallback_symbol: GLD
+    category: commodities
+    unit: usd
+  - indicator: WTI_OIL
+    symbol: CL=F
+    fallback_symbol: USO
+    category: commodities
+    unit: usd
+  - indicator: SPY
+    symbol: SPY
+    category: equity
+    unit: usd
+  - indicator: QQQ
+    symbol: QQQ
+    category: equity
+    unit: usd
+  - indicator: TLT
+    symbol: TLT
+    category: rates_proxy
+    unit: usd
+  - indicator: HYG
+    symbol: HYG
+    category: credit_proxy
+    unit: usd

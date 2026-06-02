@@ -51,3 +51,7 @@ class CrawlerRunner:
         crawler = self._registry["fred"]
         return crawler.persist(config)
 
+    def persist_market(self, config: dict[str, Any] | None = None) -> int:
+        crawler = self._registry["market"]
+        return crawler.persist(config)
+

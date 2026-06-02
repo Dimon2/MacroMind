@@ -31,6 +31,7 @@ def test_migrate_then_persist_all() -> None:
     runner = MagicMock()
     runner.persist_fred.return_value = 1
     runner.persist_kalshi.return_value = 2
+    runner.persist_market.return_value = 3
     buf = StringIO()
     with (
         patch.object(main_module, "run_migrations") as migrate,
@@ -40,13 +41,14 @@ def test_migrate_then_persist_all() -> None:
     ):
         main_module.main()
     migrate.assert_called_once()
-    assert json.loads(buf.getvalue())["total"] == 3
+    assert json.loads(buf.getvalue())["total"] == 6
 
 
-def test_persist_all_runs_both_handlers() -> None:
+def test_persist_all_runs_all_handlers() -> None:
     runner = MagicMock()
     runner.persist_fred.return_value = 13
     runner.persist_kalshi.return_value = 5
+    runner.persist_market.return_value = 8
     buf = StringIO()
     with (
         patch.object(main_module, "CrawlerRunner", return_value=runner),
@@ -54,6 +56,26 @@ def test_persist_all_runs_both_handlers() -> None:
         patch.object(main_module.sys, "stdout", buf),
     ):
         main_module.main()
-    assert json.loads(buf.getvalue()) == {"fred": 13, "kalshi": 5, "total": 18}
+    assert json.loads(buf.getvalue()) == {
+        "fred": 13,
+        "kalshi": 5,
+        "market": 8,
+        "total": 26,
+    }
     runner.persist_fred.assert_called_once()
     runner.persist_kalshi.assert_called_once()
+    runner.persist_market.assert_called_once()
+
+
+def test_persist_market_only() -> None:
+    runner = MagicMock()
+    runner.persist_market.return_value = 8
+    buf = StringIO()
+    with (
+        patch.object(main_module, "CrawlerRunner", return_value=runner),
+        patch.object(main_module.sys, "argv", ["main.py", "--crawler", "market", "--persist"]),
+        patch.object(main_module.sys, "stdout", buf),
+    ):
+        main_module.main()
+    assert json.loads(buf.getvalue()) == {"crawler": "market", "persisted": 8}
+    runner.persist_market.assert_called_once()

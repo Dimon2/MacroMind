@@ -13,7 +13,7 @@ if str(_SRC) not in sys.path:
 from ai_market_terminal.db.migrate import run_migrations
 from ai_market_terminal.runner import CrawlerRunner
 
-PERSIST_CRAWLERS = ("fred", "kalshi")
+PERSIST_CRAWLERS = ("fred", "kalshi", "market")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -50,6 +50,7 @@ def _persist_handlers(runner: CrawlerRunner) -> dict[str, Callable[[], int]]:
     return {
         "fred": runner.persist_fred,
         "kalshi": runner.persist_kalshi,
+        "market": runner.persist_market,
     }
 
 

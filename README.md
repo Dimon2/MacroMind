@@ -76,9 +76,11 @@ Project structure (ingestion-first):
 - `src/ai_market_terminal/models.py` - `DataPoint` contract (macro timeseries)
 - `src/ai_market_terminal/prediction_markets/` - Kalshi client, resolver, snapshots
 - `src/ai_market_terminal/macro/` - FRED client and watchlist loader
+- `src/ai_market_terminal/market/` - yfinance client and market watchlist loader
 - `src/ai_market_terminal/db/` - Postgres connection, migrations, repository
 - `config/kalshi_watchlist.yaml` - allowlisted Kalshi series (US macro)
 - `config/fred_series.yaml` - FRED Tier-1 macro series (13 indicators)
+- `config/market_tickers.yaml` - Yahoo Finance watchlist (8 instruments)
 - `src/ai_market_terminal/crawlers/*` - source crawlers
 - `src/ai_market_terminal/runner.py` - crawler registry and orchestration
 - `.cursor/rules/python-venv.mdc` + `.cursor/hooks/venv-guard.ps1` - agent uses `.venv` for Python/pip
@@ -174,14 +176,41 @@ WHERE observation_date >= CURRENT_DATE - 7
 ORDER BY series_id, observation_date DESC;"
 ```
 
-Persist FRED + Kalshi in one command:
+### Setup (Market / yfinance)
+
+No API key required. Uses `config/market_tickers.yaml` (VIX, DXY, GOLD, WTI, SPY, QQQ, TLT, HYG).
+
+Ingest market prices into `macro_*` tables (`source = yfinance`):
+
+```powershell
+$env:PYTHONPATH="src"
+.\.venv\Scripts\python.exe main.py --crawler market --persist
+```
+
+Preview without DB write:
+
+```powershell
+.\.venv\Scripts\python.exe main.py --crawler market
+```
+
+Verify yfinance rows in Postgres:
+
+```bash
+docker exec -it postgres psql -U admin -d market_db -c "
+SELECT series_id, observation_date, value, unit
+FROM macro_observations
+WHERE source = 'yfinance'
+ORDER BY observation_date DESC, series_id;"
+```
+
+Persist FRED + Kalshi + market in one command:
 
 ```powershell
 $env:PYTHONPATH="src"
 .\.venv\Scripts\python.exe main.py --persist-all
 ```
 
-Preview all crawlers (fred live API; market/nyfed/polymarket are stubs):
+Preview all crawlers (fred/market live APIs; nyfed/polymarket are stubs):
 
 ```powershell
 .\.venv\Scripts\python.exe main.py --crawler all
