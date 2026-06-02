@@ -1,6 +1,11 @@
 from datetime import date
 
-from ai_market_terminal.macro.fred_client import parse_latest_observation
+import httpx
+
+from ai_market_terminal.macro.fred_client import (
+    _retry_after_seconds,
+    parse_latest_observation,
+)
 
 
 def test_parse_latest_observation_skips_missing() -> None:
@@ -24,3 +29,15 @@ def test_parse_latest_observation_first_valid() -> None:
 def test_parse_latest_observation_empty() -> None:
     assert parse_latest_observation([]) is None
     assert parse_latest_observation([{"date": "2026-01-01", "value": "."}]) is None
+
+
+def test_retry_after_seconds_honors_header() -> None:
+    response = httpx.Response(429, headers={"Retry-After": "30"})
+    assert _retry_after_seconds(response, 0) == 30.0
+
+
+def test_retry_after_seconds_exponential_fallback() -> None:
+    response = httpx.Response(429)
+    assert _retry_after_seconds(response, 0) == 15.0
+    assert _retry_after_seconds(response, 2) == 60.0
+    assert _retry_after_seconds(response, 10) == 120.0

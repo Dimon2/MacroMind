@@ -146,14 +146,22 @@ ORDER BY 1, 2;"
 
 1. Add `FRED_API_KEY` to `.env` (free key from [FRED API](https://fred.stlouisfed.org/docs/api/api_key.html)).
 
-2. Apply migrations (includes `002_macro_tables.sql`):
+2. Quick check in the browser (substitute your key for `YOUR_KEY`):
+
+   [FRED API — series UNRATE (JSON)](https://api.stlouisfed.org/fred/series?series_id=UNRATE&api_key=YOUR_KEY&file_type=json)
+
+   - **200** with `"seriess"` in the body — key works.
+   - **401** — invalid or missing key.
+   - **429** — rate limit / temporary block; wait and retry later.
+
+3. Apply migrations (includes `002_macro_tables.sql`):
 
 ```powershell
 $env:PYTHONPATH="src"
 python -m ai_market_terminal.db.migrate
 ```
 
-3. Ingest FRED series from `config/fred_series.yaml`:
+4. Ingest FRED series from `config/fred_series.yaml`:
 
 ```powershell
 $env:PYTHONPATH="src"
@@ -166,7 +174,7 @@ Preview without DB write:
 .\.venv\Scripts\python.exe main.py --crawler fred
 ```
 
-4. Verify macro data in Postgres:
+5. Verify macro data in Postgres:
 
 ```bash
 docker exec -it postgres psql -U admin -d market_db -c "

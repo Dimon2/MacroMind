@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -30,7 +29,6 @@ class FredCrawler(BaseCrawler):
                 point = self._fetch_series(client, series_config)
                 if point is not None:
                     datapoints.append(point)
-                time.sleep(0.2)
 
         print(f"[{self.name}] Fetch done: produced={len(datapoints)}")
         return datapoints
@@ -65,26 +63,17 @@ class FredCrawler(BaseCrawler):
         series_config: FredSeriesConfig,
         series_id: str,
     ) -> DataPoint | None:
-        info = client.get_series_info(series_id)
-        latest = client.get_latest_observation(series_id)
+        # One API call per series; metadata comes from the watchlist (see fred_series.yaml).
+        latest = client.get_latest_observation(series_id, limit=5)
         if latest is None:
             print(f"[{self.name}] No observations for {series_id}")
             return None
 
         obs_date, value = latest
         now_utc = datetime.now(timezone.utc)
-        unit = (
-            info.get("units_short")
-            or info.get("units")
-            or series_config.unit
-        )
 
         metadata: dict[str, Any] = {
             "category": series_config.category,
-            "title": info.get("title"),
-            "frequency": info.get("frequency"),
-            "frequency_short": info.get("frequency_short"),
-            "seasonal_adjustment": info.get("seasonal_adjustment"),
         }
         if series_id != series_config.series_id:
             metadata["resolved_series_id"] = series_id
@@ -94,7 +83,7 @@ class FredCrawler(BaseCrawler):
             source=self.name,
             indicator=series_id,
             value=value,
-            unit=str(unit),
+            unit=series_config.unit,
             period=obs_date.isoformat(),
             fetched_at=now_utc,
             metadata=metadata,
