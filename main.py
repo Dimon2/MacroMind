@@ -10,8 +10,11 @@ _SRC = Path(__file__).resolve().parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+from ai_market_terminal.db.repository import MacroRepository, PredictionMarketRepository
 from ai_market_terminal.db.migrate import run_migrations
+from ai_market_terminal.market.normalized_feed_service import NormalizedFeedService
 from ai_market_terminal.runner import CrawlerRunner
+from ai_market_terminal.signals.service import SignalService
 
 PERSIST_CRAWLERS = ("fred", "kalshi", "market")
 
@@ -43,6 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Apply database migrations before other actions (migrate-only if nothing else)",
     )
+    parser.add_argument(
+        "--signals",
+        action="store_true",
+        help="Compute signals from persisted DB observations (read-only, no crawler run).",
+    )
     return parser
 
 
@@ -63,25 +71,45 @@ def _run_persist_all(runner: CrawlerRunner) -> dict[str, int]:
     return counts
 
 
+def _run_signals() -> dict[str, Any]:
+    macro_repo = MacroRepository()
+    pm_repo = PredictionMarketRepository()
+    feed = NormalizedFeedService()
+    signal_service = SignalService()
+    normalized = feed.combine(
+        macro_datapoints=macro_repo.load_latest_datapoints(),
+        prediction_snapshots=pm_repo.load_latest_snapshots(),
+    )
+    return signal_service.compute(normalized)
+
+
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
 
     wants_run = args.crawler is not None
     wants_persist = args.persist or args.persist_all
+    wants_signals = args.signals
 
     if args.migrate:
         run_migrations()
-        if not wants_run and not wants_persist:
+        if not wants_run and not wants_persist and not wants_signals:
             return
 
-    if not wants_run and not wants_persist:
+    if wants_signals and (wants_run or wants_persist):
+        parser.error("--signals is a standalone read-only action and cannot be combined with crawler/persist flags")
+
+    if not wants_run and not wants_persist and not wants_signals:
         parser.print_help(sys.stderr)
         print(
-            "\nSpecify an action: --migrate, --persist-all, --crawler NAME [--persist], or --crawler all",
+            "\nSpecify an action: --migrate, --signals, --persist-all, --crawler NAME [--persist], or --crawler all",
             file=sys.stderr,
         )
         sys.exit(2)
+
+    if wants_signals:
+        print(json.dumps(_run_signals(), indent=2))
+        return
 
     runner = CrawlerRunner()
     handlers = _persist_handlers(runner)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 from ai_market_terminal.db.connection import connection_scope
 from ai_market_terminal.models import DataPoint
@@ -21,6 +21,49 @@ class PredictionMarketRepository:
                 self._upsert_observation(conn, snap)
                 saved += 1
         return saved
+
+    def load_latest_snapshots(self) -> list[PredictionMarketSnapshot]:
+        with connection_scope() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT ON (obs.platform, obs.market_ticker)
+                  obs.platform,
+                  series.series_ticker,
+                  series.macro_topic,
+                  events.event_ticker,
+                  obs.market_ticker,
+                  markets.outcome_type,
+                  markets.outcome_label,
+                  obs.yes_probability,
+                  obs.period_date,
+                  obs.fetched_at,
+                  markets.outcome_key,
+                  markets.strike,
+                  markets.strike_op,
+                  markets.unit_hint,
+                  series.slug,
+                  series.title,
+                  events.title,
+                  events.reference_period,
+                  events.event_close_at,
+                  obs.yes_bid,
+                  obs.yes_ask,
+                  obs.volume,
+                  markets.url
+                FROM pm_observations AS obs
+                JOIN pm_markets AS markets
+                  ON markets.platform = obs.platform
+                 AND markets.market_ticker = obs.market_ticker
+                JOIN pm_events AS events
+                  ON events.platform = markets.platform
+                 AND events.event_ticker = markets.event_ticker
+                JOIN pm_series AS series
+                  ON series.platform = events.platform
+                 AND series.series_ticker = events.series_ticker
+                ORDER BY obs.platform, obs.market_ticker, obs.period_date DESC, obs.fetched_at DESC
+                """
+            ).fetchall()
+        return [self._row_to_snapshot(row) for row in rows]
 
     def _upsert_series(self, conn, snap: PredictionMarketSnapshot) -> None:
         conn.execute(
@@ -128,6 +171,34 @@ class PredictionMarketRepository:
             ),
         )
 
+    @staticmethod
+    def _row_to_snapshot(row: tuple) -> PredictionMarketSnapshot:
+        return PredictionMarketSnapshot(
+            platform=row[0],
+            series_ticker=row[1],
+            macro_topic=row[2],
+            event_ticker=row[3],
+            market_ticker=row[4],
+            outcome_type=row[5],
+            outcome_label=row[6],
+            yes_probability=float(row[7]),
+            period_date=row[8],
+            fetched_at=row[9],
+            outcome_key=row[10],
+            strike=float(row[11]) if row[11] is not None else None,
+            strike_op=row[12],
+            unit_hint=row[13],
+            series_slug=row[14],
+            series_title=row[15],
+            event_title=row[16],
+            reference_period=row[17],
+            event_close_at=row[18],
+            yes_bid=float(row[19]) if row[19] is not None else None,
+            yes_ask=float(row[20]) if row[20] is not None else None,
+            volume=float(row[21]) if row[21] is not None else None,
+            url=row[22],
+        )
+
 
 class MacroRepository:
     def save_datapoints(self, datapoints: list[DataPoint]) -> int:
@@ -141,6 +212,29 @@ class MacroRepository:
                 self._upsert_observation(conn, dp)
                 saved += 1
         return saved
+
+    def load_latest_datapoints(self) -> list[DataPoint]:
+        with connection_scope() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT ON (obs.source, obs.series_id)
+                  obs.source,
+                  obs.series_id,
+                  obs.value,
+                  obs.unit,
+                  obs.observation_date,
+                  obs.fetched_at,
+                  series.title,
+                  series.frequency,
+                  series.category
+                FROM macro_observations AS obs
+                JOIN macro_series AS series
+                  ON series.source = obs.source
+                 AND series.series_id = obs.series_id
+                ORDER BY obs.source, obs.series_id, obs.observation_date DESC, obs.fetched_at DESC
+                """
+            ).fetchall()
+        return [self._row_to_datapoint(row) for row in rows]
 
     def _upsert_series(self, conn, dp: DataPoint) -> None:
         metadata = dp.metadata or {}
@@ -188,3 +282,28 @@ class MacroRepository:
                 dp.fetched_at,
             ),
         )
+
+    @staticmethod
+    def _row_to_datapoint(row: tuple) -> DataPoint:
+        metadata: dict[str, str] = {}
+        if row[6] is not None:
+            metadata["title"] = row[6]
+        if row[7] is not None:
+            metadata["frequency"] = row[7]
+        if row[8] is not None:
+            metadata["category"] = row[8]
+        return DataPoint(
+            source=row[0],
+            indicator=row[1],
+            value=float(row[2]),
+            unit=row[3] or "",
+            period=row[4].isoformat(),
+            fetched_at=_as_utc_datetime(row[5]),
+            metadata=metadata,
+        )
+
+
+def _as_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
