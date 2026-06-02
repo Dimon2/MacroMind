@@ -1,42 +1,52 @@
-# AI Market Intelligence Terminal
+# MacroMind
 
-AI Market Intelligence Terminal is a focused decision-support product for macro and cross-asset market participants.  
-It combines macro, liquidity, sentiment, and prediction-market signals into one daily operating view.
+**Personal macro & risk intelligence — your data, your signals, grounded AI.**
 
-## Why this project
+MacroMind is a personal financial knowledge base for macro and cross-asset operators.  
+It ingests curated market data into Postgres, computes transparent rule-based signals, and (roadmap) answers questions with an LLM using only what is in your database — with citations, not hallucinated numbers.
 
-General-purpose AI tools are strong at broad explanations, but they are not optimized for repeatable, market-specific workflows.  
-This project focuses on:
+> Python package name remains `ai_market_terminal` (repo folder may stay `AI-Market-Terminal`); product brand is **MacroMind**.
 
-- curated high-signal market data sources,
-- structured regime detection (risk-on/risk-off, liquidity pressure, cycle phase),
-- actionable daily outputs (briefs and alerts), not just chat responses.
+## Why MacroMind
+
+General-purpose AI is strong at explanations but weak at **your** watchlist, **your** freshness, and **your** signal framework.
+
+MacroMind focuses on:
+
+- curated high-signal sources (macro, liquidity, prediction markets, market proxies),
+- structured facts and signals in Postgres,
+- grounded Q&A and UI (LLM reads context from the DB),
+- optional briefs/alerts as artifacts from the same knowledge base — not a separate product.
 
 ## Target user (ICP)
 
-Primary ICP for v1:
+Primary ICP for MVP:
 
 - discretionary macro traders,
 - active swing investors,
-- research-driven market operators who want a daily macro/liquidity dashboard with concise interpretation.
+- research-driven operators who want one place to ask: *"What changed in liquidity / risk since yesterday?"*
 
-## MVP scope (v1)
+## MVP → v1
 
-v1 is intentionally narrow and operational.
+**MVP (now):**
 
-Core capabilities:
+- ingest and normalize selected sources (FRED, Kalshi, yfinance),
+- rule-based signals (`--signals`),
+- grounded Q&A: question → **SQL / category retrieval** + signal context → LLM answer with dates and series ids.
 
-- ingest and normalize selected data sources (macro, liquidity, sentiment, prediction markets),
-- compute regime and stress indicators,
-- generate a daily brief with key market state changes,
-- trigger a small set of high-value alerts.
+**Not in MVP:** embeddings, pgvector, or document RAG — structured timeseries only.
 
-Out of scope for v1:
+**v1 (later):**
 
-- full-featured portfolio management,
-- HFT or intraday execution infrastructure,
-- broad social/news scraping at massive scale,
-- "general assistant for everything financial."
+- signal history and deltas,
+- dashboard UI + daily brief/alerts from the same store,
+- optional pgvector embeddings for notes and unstructured sources.
+
+Out of scope for early versions:
+
+- full portfolio management,
+- HFT / execution,
+- generic “financial assistant for everything.”
 
 ## Data source groups
 
@@ -46,44 +56,30 @@ Based on project map in `ai_market_terminal_data_sources_en.pdf`.
 - Liquidity indicators (TGA, RRP, Fed balance sheet, money supply, credit spreads)
 - Market sentiment (Fear & Greed, VIX, surveys, options positioning)
 - Prediction markets (Polymarket, Kalshi, PredictIt, FedWatch-style probabilities)
-- Insiders and institutional flows (EDGAR, short data, unusual options where feasible)
+- Insiders and institutional flows (EDGAR, short data — backlog)
 
 ## Suggested architecture
 
-- **Backend**: FastAPI (ingestion, scheduled jobs, agent orchestration)
-- **Database**: Postgres (+ pgvector if/when retrieval is needed)
-- **Cache**: Redis/Upstash for near-real-time views
-- **Frontend**: React + charting library for dashboard and brief UI
-- **AI layer**: LLM-assisted interpretation over structured indicators
+- **Backend**: FastAPI (ingestion, retrieval, LLM orchestration)
+- **Database**: Postgres (plain relational retrieval for MVP)
+- **Cache**: Redis/Upstash (optional, for hot reads)
+- **Frontend**: React + charts + chat over the same API
+- **AI layer**: LLM over structured context only (series + signals + PM); no embeddings on MVP
 
-## Getting started (project bootstrap)
+## Getting started
 
-This repository is currently in planning/bootstrap stage.
+### Current Python layout
 
-Recommended first implementation steps:
-
-1. Build ingestion for 5-7 highest-value indicators only.
-2. Create a canonical timeseries schema in Postgres.
-3. Implement one regime classifier (simple rules first).
-4. Generate one deterministic daily brief (template + metrics).
-5. Add one alert channel (in-app + optional Telegram/email).
-
-## Current Python skeleton
-
-Project structure (ingestion-first):
-
-- `main.py` - CLI entry point for running one/all crawlers
-- `src/ai_market_terminal/models.py` - `DataPoint` contract (macro timeseries)
-- `src/ai_market_terminal/prediction_markets/` - Kalshi client, resolver, snapshots
-- `src/ai_market_terminal/macro/` - FRED client and watchlist loader
-- `src/ai_market_terminal/market/` - yfinance client and market watchlist loader
-- `src/ai_market_terminal/db/` - Postgres connection, migrations, repository
-- `config/kalshi_watchlist.yaml` - allowlisted Kalshi series (US macro)
-- `config/fred_series.yaml` - FRED Tier-1 macro series (13 indicators)
-- `config/market_tickers.yaml` - Yahoo Finance watchlist (8 instruments)
-- `src/ai_market_terminal/crawlers/*` - source crawlers
-- `src/ai_market_terminal/runner.py` - crawler registry and orchestration
-- `.cursor/rules/python-venv.mdc` + `.cursor/hooks/venv-guard.ps1` - agent uses `.venv` for Python/pip
+- `main.py` — CLI: crawlers, persist, `--signals`
+- `src/ai_market_terminal/models.py` — `DataPoint` contract
+- `src/ai_market_terminal/prediction_markets/` — Kalshi client, resolver, snapshots
+- `src/ai_market_terminal/macro/` — FRED client and watchlist
+- `src/ai_market_terminal/market/` — yfinance client and watchlist
+- `src/ai_market_terminal/signals/` — rule-based signal calculators
+- `src/ai_market_terminal/db/` — Postgres, migrations, repositories
+- `config/*.yaml` — FRED, Kalshi, market watchlists
+- `src/ai_market_terminal/crawlers/*` — source crawlers
+- `.cursor/rules/python-venv.mdc` — use `.venv` for Python/pip
 
 ### Setup (Kalshi + Postgres)
 
@@ -94,8 +90,10 @@ docker run -d --name postgres \
   -e POSTGRES_USER=admin \
   -e POSTGRES_PASSWORD=password \
   -e POSTGRES_DB=market_db \
-  -p 5432:5432 pgvector/pgvector:pg17
+  -p 5432:5432 postgres:17
 ```
+
+MVP uses relational queries only (no pgvector). The `pgvector/pgvector` image is optional for a later v1 if you want embeddings preinstalled.
 
 2. Create venv, install dependencies, and configure env (from repo root):
 
@@ -184,7 +182,7 @@ WHERE observation_date >= CURRENT_DATE - 7
 ORDER BY series_id, observation_date DESC;"
 ```
 
-### Setup (Market / yfinance)
+### Setup (yfinance market proxies)
 
 No API key required. Uses `config/market_tickers.yaml` (VIX, DXY, GOLD, WTI, SPY, QQQ, TLT, HYG).
 
@@ -218,25 +216,32 @@ $env:PYTHONPATH="src"
 .\.venv\Scripts\python.exe main.py --persist-all
 ```
 
+Compute signals from persisted data (read-only):
+
+```powershell
+$env:PYTHONPATH="src"
+.\.venv\Scripts\python.exe main.py --signals
+```
+
 Preview all crawlers (fred/market live APIs; nyfed/polymarket are stubs):
 
 ```powershell
 .\.venv\Scripts\python.exe main.py --crawler all
 ```
 
-## Success criteria for v1
+## Success criteria
 
-- Daily brief is delivered reliably with meaningful state changes.
-- Alerts are low-noise and action-relevant.
-- Early users return at least 3x per week.
-- At least 3-5 users confirm willingness to pay.
+**MVP:** a user can ask a macro/liquidity/risk question and get a useful answer grounded in DB rows and signals, with verifiable citations.
+
+**v1:** weekly retention, brief/alerts optional, 3–5 pilot users willing to pay.
 
 ## Roadmap (high level)
 
-- **Phase 1**: Data reliability + baseline dashboard
-- **Phase 2**: Regime detection + daily brief
-- **Phase 3**: Alerting + personalization by user profile
-- **Phase 4**: Validation loop (retention, paid pilots, iteration)
+- **Phase 1**: Reliable ingestion + Postgres (in progress)
+- **Phase 2**: Grounded Q&A (structured retrieval + LLM) + signal context
+- **Phase 3**: UI + briefs/alerts as KB artifacts
+- **v1+**: pgvector / embeddings for unstructured notes (not MVP)
+- **Phase 4**: Insiders/flows, pilots, paid validation
 
 ## Project docs
 

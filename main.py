@@ -20,7 +20,7 @@ PERSIST_CRAWLERS = ("fred", "kalshi", "market")
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="AI Market Terminal crawler runner")
+    parser = argparse.ArgumentParser(description="MacroMind — ingestion and signals CLI")
     parser.add_argument(
         "--crawler",
         type=str,

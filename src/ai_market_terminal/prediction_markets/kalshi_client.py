@@ -15,7 +15,7 @@ class KalshiClient:
         self._client = httpx.Client(
             base_url=self._base_url,
             timeout=timeout,
-            headers={"User-Agent": "AI-Market-Terminal/0.1"},
+            headers={"User-Agent": "MacroMind/0.1"},
         )
 
     def close(self) -> None:

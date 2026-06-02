@@ -1,11 +1,13 @@
-# Product Specification ó AI Market Intelligence Terminal
+# Product Specification ù MacroMind
 
 ## 1) Product goal
 
-Build a focused market intelligence terminal that helps users make better daily macro/risk decisions through structured signals and concise interpretation.
+Build a **personal macro & risk knowledge base** with grounded AI on top.
+
+Users collect curated market facts in Postgres; the system computes transparent signals and answers questions using only retrieved context (series, dates, prediction-market probabilities, signals). Briefs and alerts are optional outputs from the same store ù not a separate product category.
 
 The product is not a generic chatbot.  
-It is a repeatable decision workflow: **data -> regime -> brief -> alert -> action**.
+Core workflow: **data ? signals ? retrieval ? grounded answer** (brief/alert/UI are layers on the same KB).
 
 ## 2) Problem statement
 
@@ -13,45 +15,54 @@ Market participants spend too much time stitching together fragmented signals fr
 Most tools either:
 
 - provide raw charts without interpretation, or
-- provide generic AI commentary without a strong signal framework.
+- provide generic AI commentary without verifiable ties to the user's data.
 
-We solve this by combining selected indicators into a coherent market state model and surfacing only material changes.
+MacroMind combines a curated indicator set, persisted facts, rule-based signals, and LLM synthesis **only over retrieved context**.
 
 ## 3) Target users (ICP)
 
-Primary ICP (v1):
+Primary ICP (MVP):
 
 - discretionary macro traders,
 - active swing investors,
-- independent analysts who operate on 1-day to multi-week horizon.
+- independent analysts on a 1-day to multi-week horizon.
 
 User jobs-to-be-done:
 
-- Quickly answer: "What changed in market regime since yesterday?"
-- Detect liquidity/risk stress earlier.
-- Reduce noise and avoid information overload.
+- Ask: "What is happening with US liquidity / risk / rates right now?" and get a cited answer.
+- Quickly see what changed since yesterday (signals + deltas).
+- Reduce tab sprawl (FRED, VIX, Kalshi, etc.) into one grounded workspace.
 
 ## 4) Core value proposition
 
-- One operational market view instead of many disconnected tabs.
-- Regime-aware interpretation (not just metric snapshots).
-- Actionable daily brief and alerts with clear rationale.
+- **Your** knowledge base ù not the open internet.
+- Transparent signals that compress facts for retrieval and UI.
+- Grounded LLM answers with mandatory source references (series id, observation date, platform).
+- One operational view: charts where needed, chat where synthesis helps.
 
-## 5) Scope for MVP (v1)
+## 5) Scope
 
-### In scope
+### MVP
 
-1. Data ingestion and normalization for a curated set of indicators.
-2. Regime classification (rule-based baseline).
-3. Daily brief generation (deterministic template + LLM polish).
-4. Alerting on key threshold or regime transitions.
-5. Dashboard with trend charts and regime state.
+1. Data ingestion and normalization (FRED, Kalshi, yfinance; more sources later).
+2. Rule-based signals (risk regime, curve proxy, PM inflation overlay, etc.).
+3. Structured retrieval from Postgres by topic/category.
+4. Grounded Q&A via LLM over a **structured** context pack (SQL by category/series + signals).
 
-### Out of scope
+**Explicitly not in MVP:** embeddings, pgvector, chunking, or document RAG.
+
+### v1
+
+1. Signal snapshots and day-over-day deltas.
+2. Dashboard UI (charts + chat).
+3. pgvector embeddings for notes and unstructured documents (only when unstructured sources matter).
+4. Deterministic daily brief + selective alerts (artifacts from KB).
+
+### Out of scope (early)
 
 - Automated trading execution.
 - Portfolio optimization and tax tooling.
-- Full NLP firehose over all financial media.
+- Full media NLP firehose.
 - Enterprise compliance workflows.
 
 ## 6) Data model and sources (v1 shortlist)
@@ -62,130 +73,107 @@ Start with a minimal, high-signal set:
 - **Liquidity**: TGA, RRP, Fed balance sheet (`WALCL`), M2 (`M2SL`)
 - **Risk/Sentiment**: VIX, HY spread (`BAMLH0A0HYM2`), Fear & Greed
 - **Prediction overlay**: Polymarket/Kalshi key macro event probabilities
-
-All additional sources from the data-source PDF are backlog until baseline reliability is proven.
+- **Backlog**: insiders / EDGAR, additional PM platforms
 
 ## 7) Key features
 
-### A. Daily Market Brief
+### A. Grounded Q&A (MVP centerpiece)
 
-- Generated once per day (configurable market session).
-- Includes:
-  - current regime,
-  - top 3 state changes vs previous day/week,
-  - risk monitor (improving/neutral/deteriorating),
-  - watch items for next 24-72h.
+- Natural-language questions (liquidity, risk, rates, inflation implied by PM).
+- Retrieval: SQL by watchlist category + latest observations + current signals.
+- LLM response constrained to context; cite every numeric claim.
 
-### B. Regime Detector
+### B. Signals
 
-Initial rule-based classifier with transparent logic:
+- Rule-based, inspectable calculators over normalized observations.
+- Used as compact facts in retrieval and UI (not a black box).
 
-- Growth trend (improving/flat/deteriorating),
-- Inflation trend (cooling/sticky/reaccelerating),
-- Liquidity impulse (positive/neutral/negative),
-- Risk appetite (risk-on/neutral/risk-off).
+### C. Daily brief & alerts (v1 polish)
 
-Combined into a simple market-state label.
-
-### C. Signal Alerts
-
-- Trigger types:
-  - threshold breach,
-  - regime transition,
-  - multi-signal confirmation event.
-- Alert quality target: low frequency, high relevance.
+- Template + metrics (+ optional LLM polish) from the same DB.
+- Low-frequency alerts on regime/signal transitions.
 
 ### D. Dashboard
 
-- Timeseries charts for v1 indicators.
-- Regime panel and current state.
-- Brief history feed.
+- Timeseries for watchlist indicators.
+- Signal panel and chat.
 
 ## 8) UX principles
 
 - Clarity over complexity.
 - Show "what changed" before "everything."
-- Every alert must include reason and source signals.
-- Explainability is mandatory for trust.
+- Every AI claim must trace to a stored fact or signal.
+- Say "insufficient data" when the DB is empty or stale.
 
 ## 9) Technical approach
 
-- **Backend**: FastAPI with scheduled ingestion jobs
-- **Storage**: Postgres timeseries tables
-- **Cache**: Redis for fast recent reads
-- **Frontend**: React dashboard
-- **LLM usage**:
-  - summarize structured signals,
-  - never fabricate raw data values,
-  - attach source timestamps to generated brief blocks.
+- **Backend**: FastAPI with scheduled ingestion and retrieval endpoints
+- **Storage**: Postgres timeseries (relational retrieval on MVP)
+- **Cache**: Redis (optional)
+- **Frontend**: React dashboard + chat (v1)
+- **LLM**: Claude/GPT over retrieved context only; **no embeddings on MVP**
 
 ## 10) Reliability and quality requirements
 
-- Data freshness SLA per source category.
-- Ingestion retries + dead-letter logging for failures.
-- Source-level observability (last successful fetch, lag, error count).
-- Graceful degradation when one source is unavailable.
+- Data freshness per source (last successful fetch, lag).
+- Ingestion retries and source-level error visibility.
+- Graceful degradation when a source is down.
 
 ## 11) Metrics and success criteria
 
-## Product metrics
+### Product metrics
 
-- WAU/DAU among pilot users.
-- Brief open rate.
-- Alert interaction rate.
-- Weekly retention.
+- Grounded Q&A success rate (user rates answer useful / not).
+- WAU among pilots; return frequency.
+- Brief/alert engagement (v1).
 
-## Quality metrics
+### MVP gate
 
-- Data ingestion success rate.
-- Alert precision proxy (user "useful/not useful" feedback).
-- Brief generation success and latency.
+- At least one end-to-end scenario works reliably (e.g. US liquidity question ? cited answer from live DB).
 
-## Commercial validation (go/no-go)
+### Commercial validation (go/no-go)
 
-Within 6-8 weeks of pilot:
+Within 6ù8 weeks of pilot:
 
-- 10-20 active users,
-- at least 3-5 users willing to pay,
-- repeat usage >= 3 sessions/week/user for core cohort.
-
-If these are not met, narrow ICP or pivot feature set.
+- 10ù20 active users,
+- 3ù5 willing to pay,
+- repeat usage ? 3 sessions/week for core cohort.
 
 ## 12) Risks and mitigations
 
-- **Risk**: Large AI vendors replicate generic features.  
-  **Mitigation**: Focus on niche workflow, proprietary signal framework, and execution quality.
+- **Risk**: "ChatGPT + CSV" perception.  
+  **Mitigation**: Curation, signals, freshness, citations, personal KB.
 
-- **Risk**: Source instability / scraping fragility.  
-  **Mitigation**: Prefer official APIs, isolate fragile connectors, monitor and fallback.
+- **Risk**: Weak data moat (public APIs).  
+  **Mitigation**: Workflow, watchlist, signal framework, retention via deltas and history.
 
-- **Risk**: Signal noise.  
-  **Mitigation**: Keep indicator set small, tune thresholds, collect user feedback loops.
+- **Risk**: LLM hallucination.  
+  **Mitigation**: Retrieval-only prompts; forbid numbers not in context.
+
+- **Risk**: Source fragility.  
+  **Mitigation**: Official APIs first; isolated crawlers; monitoring.
 
 ## 13) Delivery plan (first 4 weeks)
 
 ### Week 1
 
-- Finalize v1 indicators and schema.
-- Implement ingestion for core FRED + 1 liquidity source.
+- Stable ingestion (FRED + PM + market) and DB freshness checks.
 
 ### Week 2
 
-- Build dashboard baseline + timeseries endpoints.
-- Add data quality monitoring basics.
+- Structured retrieval by topic + `--signals` in context pack.
+- First grounded Q&A path (CLI or minimal API).
 
 ### Week 3
 
-- Implement regime detector (rule-based).
-- Implement daily brief template and history.
+- Signal history / deltas; tighten prompt and citation format.
 
 ### Week 4
 
-- Add alerts and pilot feedback capture.
-- Stabilize reliability and iterate on signal quality.
+- Thin API + pilot feedback; plan UI (embeddings deferred to v1).
 
 ## 14) Non-goals
 
-- Competing with Bloomberg Terminal feature breadth.
-- Building a universal assistant for all finance use cases.
-- Optimizing for every user segment in v1.
+- Competing with Bloomberg Terminal breadth.
+- Universal financial assistant.
+- Optimizing for every segment in MVP.
