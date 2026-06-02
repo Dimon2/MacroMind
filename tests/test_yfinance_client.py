@@ -3,7 +3,7 @@ from datetime import date
 import pandas as pd
 import pytest
 
-from ai_market_terminal.market.yfinance_client import parse_latest_bar
+from macromind.market.yfinance_client import parse_latest_bar
 
 
 def test_parse_latest_bar_uses_last_trading_row() -> None:

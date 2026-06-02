@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from ai_market_terminal.market.normalized_observation import NormalizedObservation
-from ai_market_terminal.signals.service import SignalService
+from macromind.market.normalized_observation import NormalizedObservation
+from macromind.signals.service import SignalService
 
 
 def test_signal_service_returns_coverage_and_signals() -> None:

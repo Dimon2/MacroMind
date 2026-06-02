@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from ai_market_terminal.crawlers.kalshi_crawler import KalshiCrawler
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
+from macromind.crawlers.kalshi_crawler import KalshiCrawler
+from macromind.prediction_markets.models import PredictionMarketSnapshot
 
 
 def test_snapshot_to_datapoint_maps_core_fields() -> None:

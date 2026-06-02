@@ -4,13 +4,13 @@ import time
 from dataclasses import asdict
 from typing import Any
 
-from ai_market_terminal.crawlers.base import BaseCrawler
-from ai_market_terminal.db.repository import PredictionMarketRepository
-from ai_market_terminal.models import DataPoint
-from ai_market_terminal.prediction_markets.kalshi_client import KalshiClient
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
-from ai_market_terminal.prediction_markets.resolver import EventMarketResolver
-from ai_market_terminal.prediction_markets.watchlist import load_watchlist
+from macromind.crawlers.base import BaseCrawler
+from macromind.db.repository import PredictionMarketRepository
+from macromind.models import DataPoint
+from macromind.prediction_markets.kalshi_client import KalshiClient
+from macromind.prediction_markets.models import PredictionMarketSnapshot
+from macromind.prediction_markets.resolver import EventMarketResolver
+from macromind.prediction_markets.watchlist import load_watchlist
 
 
 class KalshiCrawler(BaseCrawler):

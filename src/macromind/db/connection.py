@@ -5,7 +5,7 @@ from typing import Iterator
 
 import psycopg
 
-from ai_market_terminal.settings import get_settings
+from macromind.settings import get_settings
 
 
 def get_connection() -> psycopg.Connection:

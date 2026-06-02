@@ -10,11 +10,11 @@ _SRC = Path(__file__).resolve().parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
-from ai_market_terminal.db.repository import MacroRepository, PredictionMarketRepository
-from ai_market_terminal.db.migrate import run_migrations
-from ai_market_terminal.market.normalized_feed_service import NormalizedFeedService
-from ai_market_terminal.runner import CrawlerRunner
-from ai_market_terminal.signals.service import SignalService
+from macromind.db.repository import MacroRepository, PredictionMarketRepository
+from macromind.db.migrate import run_migrations
+from macromind.market.normalized_feed_service import NormalizedFeedService
+from macromind.runner import CrawlerRunner
+from macromind.signals.service import SignalService
 
 PERSIST_CRAWLERS = ("fred", "kalshi", "market")
 

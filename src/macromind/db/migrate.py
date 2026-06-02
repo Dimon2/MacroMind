@@ -3,8 +3,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from ai_market_terminal.db.connection import connection_scope
-from ai_market_terminal.settings import get_settings
+from macromind.db.connection import connection_scope
+from macromind.settings import get_settings
 
 
 def run_migrations() -> None:

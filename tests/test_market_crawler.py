@@ -1,9 +1,9 @@
 from datetime import date
 from unittest.mock import MagicMock, patch
 
-from ai_market_terminal.crawlers.market_crawler import MarketCrawler
-from ai_market_terminal.market.market_watchlist import MarketTickerConfig
-from ai_market_terminal.market.yfinance_client import LatestBar
+from macromind.crawlers.market_crawler import MarketCrawler
+from macromind.market.market_watchlist import MarketTickerConfig
+from macromind.market.yfinance_client import LatestBar
 
 
 def test_bar_to_datapoint_uses_observation_date() -> None:
@@ -52,8 +52,8 @@ def test_fetch_ticker_uses_fallback() -> None:
     assert client.get_latest_bar.call_count == 2
 
 
-@patch("ai_market_terminal.crawlers.market_crawler.load_market_watchlist")
-@patch("ai_market_terminal.crawlers.market_crawler.YFinanceClient")
+@patch("macromind.crawlers.market_crawler.load_market_watchlist")
+@patch("macromind.crawlers.market_crawler.YFinanceClient")
 def test_fetch_returns_datapoints(mock_client_cls: MagicMock, mock_load: MagicMock) -> None:
     mock_load.return_value = [
         MarketTickerConfig(
@@ -69,7 +69,7 @@ def test_fetch_returns_datapoints(mock_client_cls: MagicMock, mock_load: MagicMo
         metadata={"ticker": "SPY"},
     )
     crawler = MarketCrawler()
-    with patch("ai_market_terminal.crawlers.market_crawler.time.sleep"):
+    with patch("macromind.crawlers.market_crawler.time.sleep"):
         points = crawler.fetch({})
     assert len(points) == 1
     assert points[0].indicator == "SPY"

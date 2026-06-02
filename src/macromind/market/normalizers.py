@@ -3,9 +3,9 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from ai_market_terminal.market.normalized_observation import NormalizedObservation, ValueKind
-from ai_market_terminal.models import DataPoint
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
+from macromind.market.normalized_observation import NormalizedObservation, ValueKind
+from macromind.models import DataPoint
+from macromind.prediction_markets.models import PredictionMarketSnapshot
 
 
 def normalize_macro_datapoint(datapoint: DataPoint) -> NormalizedObservation:

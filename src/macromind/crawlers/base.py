@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from ai_market_terminal.models import DataPoint
+from macromind.models import DataPoint
 
 
 class BaseCrawler(ABC):

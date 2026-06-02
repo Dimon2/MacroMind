@@ -3,10 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from ai_market_terminal.prediction_markets.kalshi_client import KalshiClient
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
-from ai_market_terminal.prediction_markets.outcome import parse_outcome, parse_reference_period
-from ai_market_terminal.prediction_markets.watchlist import SeriesWatchConfig
+from macromind.prediction_markets.kalshi_client import KalshiClient
+from macromind.prediction_markets.models import PredictionMarketSnapshot
+from macromind.prediction_markets.outcome import parse_outcome, parse_reference_period
+from macromind.prediction_markets.watchlist import SeriesWatchConfig
 
 
 def _parse_dt(value: str | None) -> datetime | None:

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from ai_market_terminal.crawlers.base import BaseCrawler
-from ai_market_terminal.models import DataPoint
+from macromind.crawlers.base import BaseCrawler
+from macromind.models import DataPoint
 
 
 class NyFedCrawler(BaseCrawler):

@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from ai_market_terminal.crawlers import (
+from macromind.crawlers import (
     FredCrawler,
     KalshiCrawler,
     MarketCrawler,
     NyFedCrawler,
     PolymarketCrawler,
 )
-from ai_market_terminal.models import DataPoint
+from macromind.models import DataPoint
 
 
 class CrawlerRunner:

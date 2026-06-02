@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 
-from ai_market_terminal.db.repository import MacroRepository, PredictionMarketRepository
+from macromind.db.repository import MacroRepository, PredictionMarketRepository
 
 
 class _FakeCursor:
@@ -41,7 +41,7 @@ def test_macro_repository_load_latest_datapoints(monkeypatch) -> None:
     def fake_scope():
         yield _FakeConnection(rows)
 
-    monkeypatch.setattr("ai_market_terminal.db.repository.connection_scope", fake_scope)
+    monkeypatch.setattr("macromind.db.repository.connection_scope", fake_scope)
     result = MacroRepository().load_latest_datapoints()
     assert len(result) == 1
     assert result[0].indicator == "DGS10"
@@ -81,7 +81,7 @@ def test_prediction_market_repository_load_latest_snapshots(monkeypatch) -> None
     def fake_scope():
         yield _FakeConnection(rows)
 
-    monkeypatch.setattr("ai_market_terminal.db.repository.connection_scope", fake_scope)
+    monkeypatch.setattr("macromind.db.repository.connection_scope", fake_scope)
     result = PredictionMarketRepository().load_latest_snapshots()
     assert len(result) == 1
     assert result[0].platform == "kalshi"

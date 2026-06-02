@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from ai_market_terminal.market.normalized_observation import NormalizedObservation
-from ai_market_terminal.signals.calculators import (
+from macromind.market.normalized_observation import NormalizedObservation
+from macromind.signals.calculators import (
     compute_macro_implied_inflation_prob,
     compute_rates_curve_proxy,
     compute_risk_regime,

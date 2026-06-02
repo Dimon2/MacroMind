@@ -6,7 +6,7 @@ from typing import Any
 
 import yaml
 
-from ai_market_terminal.settings import get_settings
+from macromind.settings import get_settings
 
 
 @dataclass(frozen=True)

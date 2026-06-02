@@ -1,4 +1,4 @@
-from ai_market_terminal.prediction_markets.outcome import parse_outcome, parse_reference_period
+from macromind.prediction_markets.outcome import parse_outcome, parse_reference_period
 
 
 def test_parse_above_threshold() -> None:

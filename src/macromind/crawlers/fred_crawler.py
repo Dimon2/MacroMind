@@ -6,11 +6,11 @@ from typing import Any
 
 import httpx
 
-from ai_market_terminal.crawlers.base import BaseCrawler
-from ai_market_terminal.db.repository import MacroRepository
-from ai_market_terminal.macro.fred_client import FredClient
-from ai_market_terminal.macro.fred_watchlist import FredSeriesConfig, load_fred_watchlist
-from ai_market_terminal.models import DataPoint
+from macromind.crawlers.base import BaseCrawler
+from macromind.db.repository import MacroRepository
+from macromind.macro.fred_client import FredClient
+from macromind.macro.fred_watchlist import FredSeriesConfig, load_fred_watchlist
+from macromind.models import DataPoint
 
 
 class FredCrawler(BaseCrawler):

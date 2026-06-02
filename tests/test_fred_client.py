@@ -2,7 +2,7 @@ from datetime import date
 
 import httpx
 
-from ai_market_terminal.macro.fred_client import (
+from macromind.macro.fred_client import (
     _retry_after_seconds,
     parse_latest_observation,
 )

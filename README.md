@@ -5,7 +5,7 @@
 MacroMind is a personal financial knowledge base for macro and cross-asset operators.  
 It ingests curated market data into Postgres, computes transparent rule-based signals, and (roadmap) answers questions with an LLM using only what is in your database — with citations, not hallucinated numbers.
 
-> Python package name remains `ai_market_terminal` (repo folder may stay `AI-Market-Terminal`); product brand is **MacroMind**.
+> Python package: `macromind` (`src/macromind`). Clone folder / GitHub repo: **MacroMind**.
 
 ## Why MacroMind
 
@@ -50,7 +50,7 @@ Out of scope for early versions:
 
 ## Data source groups
 
-Based on project map in `ai_market_terminal_data_sources_en.pdf`.
+Based on project map in `macromind_data_sources_en.pdf` (legacy filename `ai_market_terminal_data_sources_en.pdf` if present).
 
 - Macroeconomic data (FRED, BLS, yfinance proxies)
 - Liquidity indicators (TGA, RRP, Fed balance sheet, money supply, credit spreads)
@@ -71,14 +71,14 @@ Based on project map in `ai_market_terminal_data_sources_en.pdf`.
 ### Current Python layout
 
 - `main.py` — CLI: crawlers, persist, `--signals`
-- `src/ai_market_terminal/models.py` — `DataPoint` contract
-- `src/ai_market_terminal/prediction_markets/` — Kalshi client, resolver, snapshots
-- `src/ai_market_terminal/macro/` — FRED client and watchlist
-- `src/ai_market_terminal/market/` — yfinance client and watchlist
-- `src/ai_market_terminal/signals/` — rule-based signal calculators
-- `src/ai_market_terminal/db/` — Postgres, migrations, repositories
+- `src/macromind/models.py` — `DataPoint` contract
+- `src/macromind/prediction_markets/` — Kalshi client, resolver, snapshots
+- `src/macromind/macro/` — FRED client and watchlist
+- `src/macromind/market/` — yfinance client and watchlist
+- `src/macromind/signals/` — rule-based signal calculators
+- `src/macromind/db/` — Postgres, migrations, repositories
 - `config/*.yaml` — FRED, Kalshi, market watchlists
-- `src/ai_market_terminal/crawlers/*` — source crawlers
+- `src/macromind/crawlers/*` — source crawlers
 - `.cursor/rules/python-venv.mdc` — use `.venv` for Python/pip
 
 ### Setup (Kalshi + Postgres)
@@ -107,7 +107,7 @@ copy .env.example .env
 
 ```powershell
 $env:PYTHONPATH="src"
-.\.venv\Scripts\python.exe -m ai_market_terminal.db.migrate
+.\.venv\Scripts\python.exe -m macromind.db.migrate
 ```
 
 Migrate only: `.\.venv\Scripts\python.exe main.py --migrate`
@@ -156,7 +156,7 @@ ORDER BY 1, 2;"
 
 ```powershell
 $env:PYTHONPATH="src"
-python -m ai_market_terminal.db.migrate
+python -m macromind.db.migrate
 ```
 
 4. Ingest FRED series from `config/fred_series.yaml`:
@@ -243,7 +243,19 @@ Preview all crawlers (fred/market live APIs; nyfed/polymarket are stubs):
 - **v1+**: pgvector / embeddings for unstructured notes (not MVP)
 - **Phase 4**: Insiders/flows, pilots, paid validation
 
+## Repository rename (local + GitHub)
+
+Code uses package `macromind` under `src/macromind`. To match the product name on disk and GitHub:
+
+1. **Close Cursor** (or any process using this folder).
+2. **Rename folder:** `D:\projects\AI-Market-Terminal` → `D:\projects\MacroMind`
+3. **Re-open** the project from `D:\projects\MacroMind`
+4. **GitHub:** Settings → General → Repository name → `MacroMind`, then update your remote:
+   ```powershell
+   git remote set-url origin https://github.com/Dimon2/MacroMind.git
+   ```
+
 ## Project docs
 
 - Product specification: `product.md`
-- Data source map: `ai_market_terminal_data_sources_en.pdf`
+- Data source map: `macromind_data_sources_en.pdf`

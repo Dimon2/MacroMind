@@ -52,7 +52,7 @@ elseif ($command -match '(?i)(^|[;&|]\s*)py\s+-m\s+pip\s+install\b') {
     $reason = 'py -m pip install'
     $suggest = "$venvPython -m pip install ..."
 }
-elseif ($command -match '(?i)main\.py|ai_market_terminal|pytest\b') {
+elseif ($command -match '(?i)main\.py|macromind|pytest\b') {
     if ($command -match '(?i)(^|[;&|]\s*)python\b') {
         $needsVenv = $true
         $reason = 'python project CLI'

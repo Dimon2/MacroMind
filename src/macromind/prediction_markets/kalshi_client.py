@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 
-from ai_market_terminal.settings import get_settings
+from macromind.settings import get_settings
 
 
 class KalshiClient:

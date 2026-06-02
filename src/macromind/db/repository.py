@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from ai_market_terminal.db.connection import connection_scope
-from ai_market_terminal.models import DataPoint
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
+from macromind.db.connection import connection_scope
+from macromind.models import DataPoint
+from macromind.prediction_markets.models import PredictionMarketSnapshot
 
 
 class PredictionMarketRepository:

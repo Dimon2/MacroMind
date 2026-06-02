@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from statistics import mean
 
-from ai_market_terminal.market.normalized_observation import NormalizedObservation
-from ai_market_terminal.signals.models import SignalResult
+from macromind.market.normalized_observation import NormalizedObservation
+from macromind.signals.models import SignalResult
 
 
 def compute_risk_regime(observations: list[NormalizedObservation]) -> SignalResult:

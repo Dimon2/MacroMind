@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from ai_market_terminal.market.normalized_observation import NormalizedObservation
-from ai_market_terminal.market.normalizers import (
+from macromind.market.normalized_observation import NormalizedObservation
+from macromind.market.normalizers import (
     normalize_macro_datapoint,
     normalize_prediction_snapshot,
 )
-from ai_market_terminal.models import DataPoint
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
+from macromind.models import DataPoint
+from macromind.prediction_markets.models import PredictionMarketSnapshot
 
 
 class NormalizedFeedService:

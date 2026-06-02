@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 
-from ai_market_terminal.market.normalized_feed_service import NormalizedFeedService
-from ai_market_terminal.market.normalizers import (
+from macromind.market.normalized_feed_service import NormalizedFeedService
+from macromind.market.normalizers import (
     normalize_macro_datapoint,
     normalize_prediction_snapshot,
 )
-from ai_market_terminal.models import DataPoint
-from ai_market_terminal.prediction_markets.models import PredictionMarketSnapshot
+from macromind.models import DataPoint
+from macromind.prediction_markets.models import PredictionMarketSnapshot
 
 
 def test_normalize_macro_datapoint_level() -> None:

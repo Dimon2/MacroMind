@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from ai_market_terminal.crawlers.base import BaseCrawler
-from ai_market_terminal.db.repository import MacroRepository
-from ai_market_terminal.market.market_watchlist import MarketTickerConfig, load_market_watchlist
-from ai_market_terminal.market.yfinance_client import LatestBar, YFinanceClient
-from ai_market_terminal.models import DataPoint
+from macromind.crawlers.base import BaseCrawler
+from macromind.db.repository import MacroRepository
+from macromind.market.market_watchlist import MarketTickerConfig, load_market_watchlist
+from macromind.market.yfinance_client import LatestBar, YFinanceClient
+from macromind.models import DataPoint
 
 
 class MarketCrawler(BaseCrawler):

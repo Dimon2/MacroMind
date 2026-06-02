@@ -1,0 +1,10 @@
+[project]
+name = "macromind"
+version = "0.1.0"
+description = "MacroMind — personal macro & risk intelligence"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]

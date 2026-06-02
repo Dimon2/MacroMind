@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 
-from ai_market_terminal.settings import get_settings
+from macromind.settings import get_settings
 
 FRED_API_BASE = "https://api.stlouisfed.org/fred"
 # FRED JSON plural for /series and /series/search — documented key, not a typo.

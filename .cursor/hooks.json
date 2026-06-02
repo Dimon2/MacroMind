@@ -4,7 +4,7 @@
     "beforeShellExecution": [
       {
         "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .cursor/hooks/venv-guard.ps1",
-        "matcher": "pip install|python -m pip|py -m pip|main\\.py|ai_market_terminal|pytest"
+        "matcher": "pip install|python -m pip|py -m pip|main\\.py|macromind|pytest"
       }
     ]
   }
