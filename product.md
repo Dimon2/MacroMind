@@ -7,7 +7,9 @@ Build a **personal macro & risk knowledge base** with grounded AI on top.
 Users collect curated market facts in Postgres; the system computes transparent signals and answers questions using only retrieved context (series, dates, prediction-market probabilities, signals). Briefs and alerts are optional outputs from the same store ? not a separate product category.
 
 The product is not a generic chatbot.  
-Core workflow: **data ? signals ? retrieval ? grounded answer** (brief/alert/UI are layers on the same KB).
+Core pipeline: **ingest ? state service ? Brief / API / UI / Chat** (see [ù16](#16-architecture--delivery-order)).
+
+Deterministic macro state and daily brief are first-class outputs; chat is a later, non-deterministic layer on the same knowledge base.
 
 ## 2) Problem statement
 
@@ -45,18 +47,23 @@ User jobs-to-be-done:
 ### MVP
 
 1. Data ingestion and normalization (FRED, Kalshi, yfinance; more sources later).
-2. Rule-based signals (risk regime, curve proxy, PM inflation overlay, etc.).
-3. Structured retrieval from Postgres by topic/category.
-4. Grounded Q&A via LLM over a **structured** context pack (SQL by category/series + signals).
+2. Rule-based signals feeding a **state service** (risk, liquidity, inflation, growth regimes + deltas).
+3. **Deterministic daily brief** from state service (template; CLI/cron acceptable).
+4. Structured retrieval from Postgres by topic/category (foundation for later chat).
 
-**Explicitly not in MVP:** embeddings, pgvector, chunking, or document RAG.
+**MVP gate:** at least one end-to-end scenario works reliably (e.g. US liquidity **brief** or cited answer from live DB).
+
+**Explicitly not in MVP:** embeddings, pgvector, chunking, document RAG, non-deterministic chat as primary deliverable.
 
 ### v1
 
-1. Signal snapshots and day-over-day deltas.
-2. Dashboard UI (charts + chat).
-3. pgvector embeddings for notes and unstructured documents (only when unstructured sources matter).
-4. Deterministic daily brief + selective alerts (artifacts from KB).
+1. **State service** ù single Python core: macro state, changes, explain inputs (shared by brief, API, UI).
+2. Signal snapshots and day-over-day deltas (inputs to state service).
+3. **Deterministic daily brief** + selective alerts (template-first; LLM polish optional and separate).
+4. **Deterministic Macro State API** when needed for UI, hosting, or integrations (wraps state service; not a separate pipeline).
+5. **UI** ù first-class product surface: state, what changed, brief; charts as support (not a chart-terminal primary).
+6. **Grounded chat** ù after brief/UI trust; LLM over retrieved context only.
+7. pgvector embeddings for notes and unstructured documents (only when unstructured sources matter).
 
 ### Out of scope (early)
 
@@ -77,27 +84,42 @@ Start with a minimal, high-signal set:
 
 ## 7) Key features
 
-### A. Grounded Q&A (MVP centerpiece)
+### A. State service (core)
 
-- Natural-language questions (liquidity, risk, rates, inflation implied by PM).
-- Retrieval: SQL by watchlist category + latest observations + current signals.
-- LLM response constrained to context; cite every numeric claim.
+- Single module builds **macro state**, **changes**, and **explain** payloads from persisted observations and signal snapshots.
+- Rule-based, inspectable; signals are inputs to a state function (evolving from v0 calculators).
+- Same output drives brief, API, and UI ù no duplicated pipelines.
 
-### B. Signals
+### B. Daily brief & alerts (first human deliverable)
 
-- Rule-based, inspectable calculators over normalized observations.
-- Used as compact facts in retrieval and UI (not a black box).
-
-### C. Daily brief & alerts (v1 polish)
-
-- Template + metrics (+ optional LLM polish) from the same DB.
+- **Deterministic** template + state + deltas from the state service (no LLM required for v1).
+- Optional LLM polish later ù never the sole source of numbers.
 - Low-frequency alerts on regime/signal transitions.
 
-### D. Dashboard
+### C. Macro State API (deterministic)
 
-- **Center:** market state, day-over-day deltas, grounded brief/chat ? not a grid of raw indicators.
+- HTTP JSON wrapper over the state service when external clients need it (UI, hosted SaaS, integrations).
+- Core endpoints (v1 target): `/health`, `/state`, `/changes`, `/explain` ù all **deterministic** (same DB ? same response).
+- Responses include `schema_version`, `deterministic: true`, coverage/skipped dimensions; scores/confidence are heuristics, not validated probabilities (see ù15).
+
+### D. UI (first-class product surface)
+
+- **Not** a secondary or optional appendix ù a primary way to read state, changes, and the daily brief.
+- **Center:** market state, day-over-day deltas, rendered brief ù not a grid of raw indicators.
 - **Support:** timeseries for watchlist indicators where context helps.
-- See [?15 Product positioning](#15-product-positioning-honest-contract) for what the UI is (and is not) optimizing for.
+- Build order: after state service + brief; **product importance** equals brief (different format, same core).
+- See [ù15 Product positioning](#15-product-positioning-honest-contract) for what the UI is (and is not) optimizing for.
+
+### E. Signals (v0 ? state inputs)
+
+- Rule-based, inspectable calculators over normalized observations.
+- Used as compact facts feeding the state service (not a black box).
+
+### F. Grounded Q&A / chat (later)
+
+- Natural-language questions (liquidity, risk, rates, inflation implied by PM).
+- Retrieval: SQL by watchlist category + latest observations + current state/signals.
+- **Non-deterministic** LLM layer; cite every numeric claim; ship after brief/UI establish trust.
 
 ## 8) UX principles
 
@@ -108,11 +130,14 @@ Start with a minimal, high-signal set:
 
 ## 9) Technical approach
 
-- **Backend**: FastAPI with scheduled ingestion and retrieval endpoints
+- **Ingestion**: scheduled crawlers ? Postgres (FRED, Kalshi, yfinance)
+- **State service**: Python core (`build_macro_state`, `build_macro_changes`, `build_macro_explain`) ù shared by brief, API, UI
+- **Brief**: template renderer over state service (CLI/cron first; no HTTP required)
+- **API**: FastAPI deterministic endpoints wrapping state service when convenient (UI hosting, SaaS, integrations)
 - **Storage**: Postgres timeseries (relational retrieval on MVP)
 - **Cache**: Redis (optional)
-- **Frontend**: React dashboard + chat (v1)
-- **LLM**: Claude/GPT over retrieved context only; **no embeddings on MVP**
+- **Frontend**: React UI ù state + changes + brief first; chat later (v1)
+- **LLM**: Claude/GPT over retrieved context only for chat; **no embeddings on MVP**; **not** in deterministic brief/state path
 
 ## 10) Reliability and quality requirements
 
@@ -130,7 +155,7 @@ Start with a minimal, high-signal set:
 
 ### MVP gate
 
-- At least one end-to-end scenario works reliably (e.g. US liquidity question ? cited answer from live DB).
+- At least one end-to-end scenario works reliably (e.g. US liquidity question answered via **deterministic brief** or later grounded chat from live DB).
 
 ### Commercial validation (go/no-go)
 
@@ -159,29 +184,33 @@ Within 6?8 weeks of pilot:
 
 ## 13) Delivery plan (first 4 weeks)
 
+Aligned with [ù16](#16-architecture--delivery-order): **state service ? Brief ? API (when needed) ? UI ? Chat**.
+
 ### Week 1
 
 - Stable ingestion (FRED + PM + market) and DB freshness checks.
 
 ### Week 2
 
-- Structured retrieval by topic + `--signals` in context pack.
-- First grounded Q&A path (CLI or minimal API).
+- **State service** v1 (wrap existing signals + deltas into stable internal contract).
+- **Deterministic brief** (CLI/template) for pilot reading.
 
 ### Week 3
 
-- Signal history / deltas; tighten prompt and citation format.
+- Signal snapshots / delta polish; brief content (what changed, cited inputs, low-confidence flags).
+- Macro State API (`/health`, `/state`, `/changes`, `/explain`) when UI or hosting needs HTTP ù otherwise defer.
 
 ### Week 4
 
-- Thin API + pilot feedback; plan UI (embeddings deferred to v1).
+- **UI** v0: state + changes + brief (charts secondary).
+- Pilot feedback; grounded chat deferred until brief/UI trusted (embeddings deferred to v1+).
 
 ## 14) Non-goals
 
 - Competing with Bloomberg Terminal breadth.
 - Universal financial assistant.
 - Optimizing for every segment in MVP.
-- Predictive macro timing, validated regime alpha, or investment advice (see ß15).
+- Predictive macro timing, validated regime alpha, or investment advice (see ù15).
 
 ## 15) Product positioning (honest contract)
 
@@ -218,9 +247,11 @@ Signals compress facts for retrieval; they are **not** a validated inference mod
 
 ### Near-term delivery priority
 
-**API + daily brief** over signal sophistication.
+**State service ? deterministic Brief ? API (when convenient) ? UI ? Chat** ù not signal sophistication or chart-terminal work first.
 
-Brief and chat should emphasize:
+Build order is not product hierarchy: **UI is first-class** alongside brief; both consume the same state service. Chat comes last.
+
+Brief (and UI) should emphasize:
 
 - what changed (signal deltas),
 - current regime labels and cited inputs,
@@ -230,7 +261,7 @@ and should **not** emit price forecasts or exposure recommendations unless expli
 
 ### UI principle
 
-Charts support context. The product center is **state + change + grounded synthesis**, not another VIX/WALCL/CPI dashboard.
+UI is a **primary reading surface**, not a secondary API client. Charts support context. The center is **state + change + brief**, not another VIX/WALCL/CPI dashboard.
 
 ### Future improvements (evidence-gated)
 
@@ -245,4 +276,75 @@ Optional backlog ? ship with documented limitations only:
 
 ### Why this can matter beyond a portfolio project
 
-Interesting products in this space often fail by selling **illusion of edge** without validation. MacroMind's bet is the opposite: **trustworthy, cited macro memory and interpretation** for discretionary operators who already make their own trade calls ? workflow and honesty as retention, not fake alpha.
+Interesting products in this space often fail by selling **illusion of edge** without validation. MacroMind's bet is the opposite: **trustworthy, cited macro memory and interpretation** for discretionary operators who already make their own trade calls ù workflow and honesty as retention, not fake alpha.
+
+Architectural choices (state service, deterministic API, brief-first) improve **shipping, trust, and workflow** ù they do **not** by themselves create data or predictive moat (see ù16).
+
+## 16) Architecture & delivery order
+
+### Pipeline
+
+```
+ingest ? state service ? Brief ? API (when convenient) ? UI ? Chat
+```
+
+- **Ingest:** crawlers persist normalized observations and PM snapshots.
+- **State service:** one Python core produces macro state, 24h (or configurable) changes, and per-regime explain payloads. Brief, API, and UI call this layer ù no duplicate logic.
+- **Brief:** first human-facing deliverable; deterministic template over state service (CLI/cron OK before HTTP).
+- **API:** JSON wrapper over the same state service when external clients need it (React UI, hosted SaaS, integrations). Not required before brief.
+- **UI:** first-class product surface (state + changes + brief); not demoted to "optional client."
+- **Chat:** non-deterministic LLM Q&A last; builds on trust established by brief/UI.
+
+### Deterministic vs non-deterministic
+
+| Layer | Deterministic? | Notes |
+|-------|------------------|-------|
+| State service | Yes | Same DB snapshot ? same output |
+| Daily brief (v1) | Yes | Template + state + deltas |
+| `/v1/macro/state`, `/changes`, `/explain`, `/health` | Yes | `deterministic: true`, `schema_version` in responses |
+| Chat / `POST /ask` | No | LLM; citations required; numbers only from retrieved context |
+| Brief LLM polish (optional) | No | Separate artifact; never sole source of metrics |
+
+### State service contract (internal, v1 target)
+
+Functions (names illustrative):
+
+- `build_macro_state()` ù regimes (risk, liquidity, inflation, growth), labels, scores, coverage, `as_of`
+- `build_macro_changes(window)` ù deltas, significance, driver series keys
+- `build_macro_explain(regime)` ù drivers from cited inputs (weights when feature layer ships)
+
+Evolution: v0 wraps existing `SignalService` + snapshots/deltas; later adds feature layer and weighted regime engine without breaking the external contract.
+
+### Macro State API (HTTP, when shipped)
+
+Primary machine-facing product alongside brief/UI. Example shape:
+
+```json
+{
+  "schema_version": "1.0",
+  "deterministic": true,
+  "as_of": "2026-06-03T21:00:00Z",
+  "regimes": {
+    "risk": { "value": "risk_on", "score": 0.72, "confidence": 0.64 }
+  },
+  "delta_24h": { "liquidity": -0.08 }
+}
+```
+
+`score` / `confidence` are **heuristic coordinates and agreement signals** ù not validated probabilities or trading edge (ù15).
+
+### Build order vs product importance
+
+| | Build order (what to ship first) | Product importance |
+|--|----------------------------------|--------------------|
+| State service | 1 | Core |
+| Brief | 2 | High |
+| API | 3 (when UI/hosting needs it) | High for integrations/SaaS |
+| UI | 4 | **High** ù equal to brief as reading experience |
+| Chat | 5 | Medium until trust exists |
+
+### Moat expectations
+
+These architecture choices add **trust, reproducibility, and workflow** (weak moat: habit, hosted convenience, cited interpreter).
+
+They do **not** add exclusive data or validated predictive alpha. Do not market deterministic scores as forecast edge.

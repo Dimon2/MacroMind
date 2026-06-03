@@ -18,7 +18,19 @@ MacroMind focuses on:
 - grounded Q&A and UI (LLM reads context from the DB),
 - optional briefs/alerts as artifacts from the same knowledge base — not a separate product.
 
-MacroMind is a **cited macro knowledge base** for discretionary operators: daily state, what changed, and grounded Q&A over *your* data. It is **not** a predictive regime engine or trade advisor — transparency and verifiable context are the product. Full positioning: [`product.md` §15](product.md#15-product-positioning-honest-contract).
+MacroMind is a **cited macro knowledge base** for discretionary operators: daily state, what changed, and grounded Q&A over *your* data. It is **not** a predictive regime engine or trade advisor — transparency and verifiable context are the product. Full positioning: [`product.md` §15](product.md#15-product-positioning-honest-contract). Architecture and delivery order: [`product.md` §16](product.md#16-architecture--delivery-order).
+
+## Architecture (summary)
+
+```
+ingest → state service → Brief → API (when convenient) → UI → Chat
+```
+
+- **State service** — one deterministic Python core (state, changes, explain); brief, API, and UI share it.
+- **Brief first** — template + deltas for daily pilot value (no LLM required in v1).
+- **Deterministic API** — `/state`, `/changes`, `/explain`, `/health` when HTTP is needed; same DB → same JSON.
+- **UI** — first-class surface (state + changes + brief), not a chart-terminal afterthought.
+- **Chat last** — non-deterministic LLM layer after brief/UI trust.
 
 ## Target user (ICP)
 
@@ -40,8 +52,11 @@ Primary ICP for MVP:
 
 **v1 (later):**
 
-- signal history and deltas,
-- dashboard UI + daily brief/alerts from the same store,
+- state service + signal history and deltas,
+- deterministic daily brief (template-first),
+- Macro State API when UI/hosting needs HTTP,
+- UI (state + changes + brief; charts secondary),
+- grounded chat (after brief/UI),
 - optional pgvector embeddings for notes and unstructured sources.
 
 Out of scope for early versions:
@@ -293,5 +308,7 @@ Code uses package `macromind` under `src/macromind`. To match the product name o
 
 ## Project docs
 
-- Product specification: `product.md` (including [§15 honest positioning contract](product.md#15-product-positioning-honest-contract))
+- Product specification: `product.md`
+  - [§15 honest positioning contract](product.md#15-product-positioning-honest-contract)
+  - [§16 architecture & delivery order](product.md#16-architecture--delivery-order)
 - Data source map: `macromind_data_sources_en.pdf`
