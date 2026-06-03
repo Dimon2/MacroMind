@@ -239,6 +239,8 @@ Compute signals from persisted data (read-only):
 .\.venv\Scripts\python.exe main.py --signals
 ```
 
+Returns seven rule-based signals: `risk_regime`, `rates_curve_proxy`, `macro_implied_inflation_prob`, `liquidity_regime`, `inflation_regime`, `growth_regime`, and composite `market_state` (four regime labels joined when all dimensions computed).
+
 Save daily signal snapshots and day-over-day deltas (run after ingest):
 
 ```powershell

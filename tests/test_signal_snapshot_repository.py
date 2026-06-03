@@ -43,6 +43,17 @@ def test_extract_label_risk_regime() -> None:
     assert extract_label(result) == "risk_on"
 
 
+def test_extract_label_market_state() -> None:
+    result = SignalResult(
+        name="market_state",
+        status="computed",
+        value=None,
+        metadata={"label": "risk_on_tight_rising_expanding"},
+        as_of=_NOW,
+    )
+    assert extract_label(result) == "risk_on_tight_rising_expanding"
+
+
 def test_extract_label_curve_state() -> None:
     result = SignalResult(
         name="rates_curve_proxy",

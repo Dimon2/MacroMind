@@ -41,16 +41,17 @@ def test_signal_service_returns_coverage_and_signals() -> None:
         ),
     ]
     result = service.compute(observations)
-    assert result["coverage"]["total"] == 6
+    assert result["coverage"]["total"] == 7
     assert result["coverage"]["computed"] >= 2
-    assert len(result["signals"]) == 6
+    assert len(result["signals"]) == 7
     names = {item["name"] for item in result["signals"]}
     assert "liquidity_regime" in names
     assert "inflation_regime" in names
     assert "growth_regime" in names
+    assert "market_state" in names
 
 
 def test_signal_service_handles_degraded_inputs() -> None:
     service = SignalService()
     result = service.compute([])
-    assert result["coverage"] == {"computed": 0, "skipped": 6, "total": 6}
+    assert result["coverage"] == {"computed": 0, "skipped": 7, "total": 7}

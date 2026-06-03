@@ -21,6 +21,13 @@ INFLATION_YOY_FALLING_PCT = 2.5
 GROWTH_UNRATE_EXPANDING_PP = -0.05
 GROWTH_UNRATE_CONTRACTING_PP = 0.05
 
+MARKET_STATE_DIMENSIONS: tuple[str, ...] = (
+    "risk_regime",
+    "liquidity_regime",
+    "inflation_regime",
+    "growth_regime",
+)
+
 
 def compute_risk_regime(observations: list[NormalizedObservation]) -> SignalResult:
     by_key = _latest_by_series_key(observations)
@@ -279,6 +286,44 @@ def compute_growth_regime(observations: list[NormalizedObservation]) -> SignalRe
         value=float(score),
         inputs=inputs,
         metadata={"label": label},
+        as_of=as_of,
+    )
+
+
+def compute_market_state(dimension_results: dict[str, SignalResult]) -> SignalResult:
+    labels: dict[str, str] = {}
+    missing: list[str] = []
+
+    for name in MARKET_STATE_DIMENSIONS:
+        result = dimension_results.get(name)
+        if result is None or result.status != "computed":
+            missing.append(name)
+            continue
+        label = result.metadata.get("label")
+        if label is None:
+            missing.append(name)
+            continue
+        labels[name] = str(label)
+
+    if missing:
+        return _skipped(
+            name="market_state",
+            reason="missing_dimension_labels",
+            inputs={"missing": missing, "computed_dimensions": labels},
+        )
+
+    composite = (
+        f"{labels['risk_regime']}_{labels['liquidity_regime']}_"
+        f"{labels['inflation_regime']}_{labels['growth_regime']}"
+    )
+    as_of = max(dimension_results[name].as_of for name in MARKET_STATE_DIMENSIONS)
+
+    return SignalResult(
+        name="market_state",
+        status="computed",
+        value=None,
+        inputs={"dimensions": labels},
+        metadata={"label": composite},
         as_of=as_of,
     )
 

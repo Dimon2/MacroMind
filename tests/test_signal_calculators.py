@@ -8,9 +8,11 @@ from macromind.signals.calculators import (
     compute_inflation_regime,
     compute_liquidity_regime,
     compute_macro_implied_inflation_prob,
+    compute_market_state,
     compute_rates_curve_proxy,
     compute_risk_regime,
 )
+from macromind.signals.models import SignalResult
 
 _FETCHED = datetime(2026, 6, 2, 10, 0, tzinfo=timezone.utc)
 
@@ -193,3 +195,45 @@ def test_compute_growth_regime_skips_without_unrate_history() -> None:
     result = compute_growth_regime([_fred_obs("UNRATE", date(2026, 5, 1), 4.0, value_kind="rate")])
     assert result.status == "skipped"
     assert result.reason == "insufficient_history"
+
+
+def _dimension_result(name: str, label: str) -> SignalResult:
+    return SignalResult(
+        name=name,
+        status="computed",
+        value=1.0,
+        metadata={"label": label},
+        as_of=_FETCHED,
+    )
+
+
+def test_compute_market_state_composite_label() -> None:
+    result = compute_market_state(
+        {
+            "risk_regime": _dimension_result("risk_regime", "risk_on"),
+            "liquidity_regime": _dimension_result("liquidity_regime", "tight"),
+            "inflation_regime": _dimension_result("inflation_regime", "rising"),
+            "growth_regime": _dimension_result("growth_regime", "expanding"),
+        }
+    )
+    assert result.status == "computed"
+    assert result.metadata["label"] == "risk_on_tight_rising_expanding"
+    assert result.inputs["dimensions"]["liquidity_regime"] == "tight"
+
+
+def test_compute_market_state_skips_when_dimension_missing() -> None:
+    result = compute_market_state(
+        {
+            "risk_regime": _dimension_result("risk_regime", "risk_on"),
+            "liquidity_regime": SignalResult(
+                name="liquidity_regime",
+                status="skipped",
+                reason="insufficient_history",
+            ),
+            "inflation_regime": _dimension_result("inflation_regime", "stable"),
+            "growth_regime": _dimension_result("growth_regime", "neutral"),
+        }
+    )
+    assert result.status == "skipped"
+    assert result.reason == "missing_dimension_labels"
+    assert "liquidity_regime" in result.inputs["missing"]

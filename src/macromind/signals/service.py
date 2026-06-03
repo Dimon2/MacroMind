@@ -9,6 +9,7 @@ from macromind.signals.calculators import (
     compute_inflation_regime,
     compute_liquidity_regime,
     compute_macro_implied_inflation_prob,
+    compute_market_state,
     compute_rates_curve_proxy,
     compute_risk_regime,
 )
@@ -17,14 +18,21 @@ from macromind.signals.models import SignalResult
 
 class SignalService:
     def compute_results(self, observations: list[NormalizedObservation]) -> list[SignalResult]:
-        return [
-            compute_risk_regime(observations),
-            compute_rates_curve_proxy(observations),
-            compute_macro_implied_inflation_prob(observations),
-            compute_liquidity_regime(observations),
-            compute_inflation_regime(observations),
-            compute_growth_regime(observations),
-        ]
+        risk = compute_risk_regime(observations)
+        curve = compute_rates_curve_proxy(observations)
+        pm_inflation = compute_macro_implied_inflation_prob(observations)
+        liquidity = compute_liquidity_regime(observations)
+        inflation = compute_inflation_regime(observations)
+        growth = compute_growth_regime(observations)
+        market = compute_market_state(
+            {
+                "risk_regime": risk,
+                "liquidity_regime": liquidity,
+                "inflation_regime": inflation,
+                "growth_regime": growth,
+            }
+        )
+        return [risk, curve, pm_inflation, liquidity, inflation, growth, market]
 
     def compute(self, observations: list[NormalizedObservation]) -> dict[str, Any]:
         results = self.compute_results(observations)

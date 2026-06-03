@@ -66,6 +66,20 @@ def test_build_deltas_for_date_no_baseline(monkeypatch) -> None:
     assert deltas[0].prev_value is None
 
 
+def test_compute_signal_deltas_market_state_label() -> None:
+    current = [_row("market_state", label="risk_on_easy_stable_expanding")]
+    previous = [
+        _row(
+            "market_state",
+            label="risk_off_tight_rising_contracting",
+            snapshot_date=_PREV,
+        )
+    ]
+    deltas = compute_signal_deltas(current, previous)
+    assert deltas[0].label_changed is True
+    assert deltas[0].comparable is True
+
+
 def test_build_deltas_for_date_with_baseline() -> None:
     repo = MagicMock()
     repo.load_for_date.side_effect = lambda d: (
