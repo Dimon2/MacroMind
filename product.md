@@ -1,10 +1,10 @@
-# Product Specification  MacroMind
+# Product Specification ? MacroMind
 
 ## 1) Product goal
 
 Build a **personal macro & risk knowledge base** with grounded AI on top.
 
-Users collect curated market facts in Postgres; the system computes transparent signals and answers questions using only retrieved context (series, dates, prediction-market probabilities, signals). Briefs and alerts are optional outputs from the same store  not a separate product category.
+Users collect curated market facts in Postgres; the system computes transparent signals and answers questions using only retrieved context (series, dates, prediction-market probabilities, signals). Briefs and alerts are optional outputs from the same store ? not a separate product category.
 
 The product is not a generic chatbot.  
 Core workflow: **data ? signals ? retrieval ? grounded answer** (brief/alert/UI are layers on the same KB).
@@ -35,7 +35,7 @@ User jobs-to-be-done:
 
 ## 4) Core value proposition
 
-- **Your** knowledge base  not the open internet.
+- **Your** knowledge base ? not the open internet.
 - Transparent signals that compress facts for retrieval and UI.
 - Grounded LLM answers with mandatory source references (series id, observation date, platform).
 - One operational view: charts where needed, chat where synthesis helps.
@@ -95,8 +95,9 @@ Start with a minimal, high-signal set:
 
 ### D. Dashboard
 
-- Timeseries for watchlist indicators.
-- Signal panel and chat.
+- **Center:** market state, day-over-day deltas, grounded brief/chat ? not a grid of raw indicators.
+- **Support:** timeseries for watchlist indicators where context helps.
+- See [?15 Product positioning](#15-product-positioning-honest-contract) for what the UI is (and is not) optimizing for.
 
 ## 8) UX principles
 
@@ -133,10 +134,10 @@ Start with a minimal, high-signal set:
 
 ### Commercial validation (go/no-go)
 
-Within 68 weeks of pilot:
+Within 6?8 weeks of pilot:
 
-- 1020 active users,
-- 35 willing to pay,
+- 10?20 active users,
+- 3?5 willing to pay,
 - repeat usage ? 3 sessions/week for core cohort.
 
 ## 12) Risks and mitigations
@@ -152,6 +153,9 @@ Within 68 weeks of pilot:
 
 - **Risk**: Source fragility.  
   **Mitigation**: Official APIs first; isolated crawlers; monitoring.
+
+- **Risk**: Overpromising predictive regime / trade edge.  
+  **Mitigation**: Position as interpreter + KB (?15); no validated forward claims in product copy; flag low confidence and conflicting inputs in brief/Q&A.
 
 ## 13) Delivery plan (first 4 weeks)
 
@@ -177,3 +181,68 @@ Within 68 weeks of pilot:
 - Competing with Bloomberg Terminal breadth.
 - Universal financial assistant.
 - Optimizing for every segment in MVP.
+- Predictive macro timing, validated regime alpha, or investment advice (see §15).
+
+## 15) Product positioning (honest contract)
+
+This section records what MacroMind **is** and **is not**, so delivery stays aligned with a real product ? not a resume demo or a black-box "regime engine."
+
+### What MacroMind is
+
+A **personal macro & risk knowledge base** with a transparent **interpretation layer**:
+
+**curated facts ? rule-based signals ? daily deltas ? grounded brief / Q&A with citations.**
+
+Core question we answer:
+
+> **"What does *my* watchlist show, what changed, and how does our rule-set read it?"**
+
+Primary value is **cognitive offload**: less tab sprawl, consistent vocabulary (risk / liquidity / inflation / growth), personal data memory, and answers you can verify ? not oracle-style market calls.
+
+### What MacroMind is not
+
+- **Not** a Bloomberg-style chart terminal ? indicator UI alone is commodity.
+- **Not** a predictive "regime engine" or macro timing system with validated alpha.
+- **Not** investment advice, portfolio optimization, trade recommendations, or execution.
+
+Users may draw their own trading conclusions. We do **not** sell validated forward edge or imply the system "knows" what to do with positions.
+
+### Signals (current generation)
+
+Rule-based, inspectable **v0 telemetry + labels** (`risk_regime`, `liquidity_regime`, `inflation_regime`, `growth_regime`, plus standalone overlays such as curve proxy and PM inflation probability).
+
+- `market_state` is a **composite label** for retrieval and UI ? a string encoding of four dimensions, not a calibrated state machine.
+- Known limits (acceptable for v1): limited second-order features, no cross-signal interaction rules yet, no backtested hit rates, heuristic liquidity inputs (e.g. RRP % change without level context).
+
+Signals compress facts for retrieval; they are **not** a validated inference model until evidence says otherwise.
+
+### Near-term delivery priority
+
+**API + daily brief** over signal sophistication.
+
+Brief and chat should emphasize:
+
+- what changed (signal deltas),
+- current regime labels and cited inputs,
+- conflicts and **low-confidence** reads where sub-signals disagree,
+
+and should **not** emit price forecasts or exposure recommendations unless explicitly validated later.
+
+### UI principle
+
+Charts support context. The product center is **state + change + grounded synthesis**, not another VIX/WALCL/CPI dashboard.
+
+### Future improvements (evidence-gated)
+
+Optional backlog ? ship with documented limitations only:
+
+- second-order features (e.g. VIX change horizons, CPI acceleration, liquidity z-scores),
+- regime vector / confidence scores instead of false-precision labels,
+- small set of interaction flags (e.g. risk-on + tight liquidity),
+- simple historical sanity checks before any predictive language in copy.
+
+**Predictive claims** (cycle phase, asset tilts, shock probabilities with implied edge) require out-of-sample validation before they appear in product messaging or brief templates.
+
+### Why this can matter beyond a portfolio project
+
+Interesting products in this space often fail by selling **illusion of edge** without validation. MacroMind's bet is the opposite: **trustworthy, cited macro memory and interpretation** for discretionary operators who already make their own trade calls ? workflow and honesty as retention, not fake alpha.

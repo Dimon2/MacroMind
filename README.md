@@ -18,6 +18,8 @@ MacroMind focuses on:
 - grounded Q&A and UI (LLM reads context from the DB),
 - optional briefs/alerts as artifacts from the same knowledge base — not a separate product.
 
+MacroMind is a **cited macro knowledge base** for discretionary operators: daily state, what changed, and grounded Q&A over *your* data. It is **not** a predictive regime engine or trade advisor — transparency and verifiable context are the product. Full positioning: [`product.md` §15](product.md#15-product-positioning-honest-contract).
+
 ## Target user (ICP)
 
 Primary ICP for MVP:
@@ -291,5 +293,5 @@ Code uses package `macromind` under `src/macromind`. To match the product name o
 
 ## Project docs
 
-- Product specification: `product.md`
+- Product specification: `product.md` (including [§15 honest positioning contract](product.md#15-product-positioning-honest-contract))
 - Data source map: `macromind_data_sources_en.pdf`
