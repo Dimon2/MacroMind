@@ -214,6 +214,18 @@ class MacroRepository:
                 saved += 1
         return saved
 
+    def count_observations(self, source: str, series_id: str) -> int:
+        with connection_scope() as conn:
+            row = conn.execute(
+                """
+                SELECT COUNT(*)::int
+                FROM macro_observations
+                WHERE source = %s AND series_id = %s
+                """,
+                (source, series_id),
+            ).fetchone()
+        return int(row[0]) if row else 0
+
     def load_latest_datapoints(self) -> list[DataPoint]:
         with connection_scope() as conn:
             rows = conn.execute(

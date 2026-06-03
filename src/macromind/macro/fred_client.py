@@ -17,26 +17,42 @@ MAX_429_RETRIES = 3
 _MAX_429_BACKOFF_SEC = 120.0
 
 
+def _parse_one_observation(obs: dict[str, Any]) -> tuple[date, float] | None:
+    raw_value = obs.get("value")
+    if raw_value is None or raw_value == ".":
+        return None
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        return None
+    raw_date = obs.get("date")
+    if not raw_date:
+        return None
+    try:
+        obs_date = date.fromisoformat(str(raw_date))
+    except ValueError:
+        return None
+    return obs_date, value
+
+
+def parse_observations(
+    observations: list[dict[str, Any]],
+) -> list[tuple[date, float]]:
+    parsed: list[tuple[date, float]] = []
+    for obs in observations:
+        row = _parse_one_observation(obs)
+        if row is not None:
+            parsed.append(row)
+    return parsed
+
+
 def parse_latest_observation(
     observations: list[dict[str, Any]],
 ) -> tuple[date, float] | None:
-    for obs in observations:
-        raw_value = obs.get("value")
-        if raw_value is None or raw_value == ".":
-            continue
-        try:
-            value = float(raw_value)
-        except (TypeError, ValueError):
-            continue
-        raw_date = obs.get("date")
-        if not raw_date:
-            continue
-        try:
-            obs_date = date.fromisoformat(str(raw_date))
-        except ValueError:
-            continue
-        return obs_date, value
-    return None
+    parsed = parse_observations(observations)
+    if not parsed:
+        return None
+    return parsed[0]
 
 
 def _retry_after_seconds(response: httpx.Response, attempt: int) -> float:

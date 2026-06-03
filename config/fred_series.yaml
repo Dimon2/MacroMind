@@ -1,4 +1,5 @@
 # v1 FRED watchlist — Tier 1 only
+# min_points / bootstrap_limit / steady_limit: crawler uses DB count to pick fetch depth
 series:
   - series_id: DGS10
     category: rates
@@ -15,15 +16,19 @@ series:
   - series_id: CPIAUCSL
     category: inflation
     unit: index
+    min_points: 13
   - series_id: CPILFESL
     category: inflation
     unit: index
+    min_points: 13
   - series_id: UNRATE
     category: employment
     unit: percent
+    min_points: 2
   - series_id: WALCL
     category: liquidity
     unit: millions_usd
+    min_points: 2
   - series_id: M2SL
     category: liquidity
     unit: billions_usd
@@ -33,9 +38,11 @@ series:
   - series_id: WTREGEN
     category: liquidity
     unit: millions_usd
+    min_points: 2
   - series_id: RRPONTSYD
     category: liquidity
     unit: billions_usd
+    min_points: 2
   - series_id: BAMLH0A0HYM2
     category: credit
     unit: percent
