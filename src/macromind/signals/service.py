@@ -5,6 +5,9 @@ from typing import Any
 
 from macromind.market.normalized_observation import NormalizedObservation
 from macromind.signals.calculators import (
+    compute_growth_regime,
+    compute_inflation_regime,
+    compute_liquidity_regime,
     compute_macro_implied_inflation_prob,
     compute_rates_curve_proxy,
     compute_risk_regime,
@@ -18,6 +21,9 @@ class SignalService:
             compute_risk_regime(observations),
             compute_rates_curve_proxy(observations),
             compute_macro_implied_inflation_prob(observations),
+            compute_liquidity_regime(observations),
+            compute_inflation_regime(observations),
+            compute_growth_regime(observations),
         ]
 
     def compute(self, observations: list[NormalizedObservation]) -> dict[str, Any]:
