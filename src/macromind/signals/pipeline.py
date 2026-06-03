@@ -6,12 +6,41 @@ from typing import Any
 from macromind.db.repository import MacroRepository, PredictionMarketRepository
 from macromind.db.signal_snapshot import SignalSnapshotRepository
 from macromind.market.normalized_feed_service import NormalizedFeedService
+from macromind.models import DataPoint
 from macromind.signals.delta import build_deltas_for_date
+from macromind.signals.regime_series import (
+    FRED_SOURCE,
+    REGIME_HISTORY_LAST_N,
+    REGIME_SERIES_IDS,
+)
 from macromind.signals.service import SignalService
 
 
 def utc_today() -> date:
     return datetime.now(timezone.utc).date()
+
+
+def merge_macro_datapoints(
+    latest: list[DataPoint],
+    history: list[DataPoint],
+) -> list[DataPoint]:
+    merged: dict[tuple[str, str, str], DataPoint] = {}
+    for dp in (*latest, *history):
+        key = (dp.source, dp.indicator, dp.period)
+        existing = merged.get(key)
+        if existing is None or dp.fetched_at > existing.fetched_at:
+            merged[key] = dp
+    return list(merged.values())
+
+
+def macro_datapoints_for_signals(macro: MacroRepository) -> list[DataPoint]:
+    latest = macro.load_latest_datapoints()
+    history = macro.load_observations(
+        FRED_SOURCE,
+        REGIME_SERIES_IDS,
+        last_n=REGIME_HISTORY_LAST_N,
+    )
+    return merge_macro_datapoints(latest, history)
 
 
 def load_observations_and_compute(
@@ -25,7 +54,7 @@ def load_observations_and_compute(
     service = signal_service or SignalService()
     feed = NormalizedFeedService()
     normalized = feed.combine(
-        macro_datapoints=macro.load_latest_datapoints(),
+        macro_datapoints=macro_datapoints_for_signals(macro),
         prediction_snapshots=pm.load_latest_snapshots(),
     )
     return service.compute(normalized)
@@ -47,7 +76,7 @@ def run_snapshot_signals(
     service = signal_service or SignalService()
     feed = NormalizedFeedService()
     normalized = feed.combine(
-        macro_datapoints=macro.load_latest_datapoints(),
+        macro_datapoints=macro_datapoints_for_signals(macro),
         prediction_snapshots=pm.load_latest_snapshots(),
     )
     results = service.compute_results(normalized)

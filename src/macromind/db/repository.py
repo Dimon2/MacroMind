@@ -249,6 +249,60 @@ class MacroRepository:
             ).fetchall()
         return [self._row_to_datapoint(row) for row in rows]
 
+    def load_observations(
+        self,
+        source: str,
+        series_ids: list[str] | tuple[str, ...],
+        *,
+        last_n: int,
+    ) -> list[DataPoint]:
+        ids = [str(s).upper() for s in series_ids]
+        if not ids or last_n < 1:
+            return []
+
+        placeholders = ", ".join(["%s"] * len(ids))
+        with connection_scope() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT
+                  ranked.source,
+                  ranked.series_id,
+                  ranked.value,
+                  ranked.unit,
+                  ranked.observation_date,
+                  ranked.fetched_at,
+                  ranked.title,
+                  ranked.frequency,
+                  ranked.category
+                FROM (
+                  SELECT
+                    obs.source,
+                    obs.series_id,
+                    obs.value,
+                    obs.unit,
+                    obs.observation_date,
+                    obs.fetched_at,
+                    series.title,
+                    series.frequency,
+                    series.category,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY obs.source, obs.series_id
+                      ORDER BY obs.observation_date DESC, obs.fetched_at DESC
+                    ) AS rn
+                  FROM macro_observations AS obs
+                  JOIN macro_series AS series
+                    ON series.source = obs.source
+                   AND series.series_id = obs.series_id
+                  WHERE obs.source = %s
+                    AND obs.series_id IN ({placeholders})
+                ) AS ranked
+                WHERE ranked.rn <= %s
+                ORDER BY ranked.series_id, ranked.observation_date DESC
+                """,
+                (source, *ids, last_n),
+            ).fetchall()
+        return [self._row_to_datapoint(row) for row in rows]
+
     def _upsert_series(self, conn, dp: DataPoint) -> None:
         metadata = dp.metadata or {}
         conn.execute(

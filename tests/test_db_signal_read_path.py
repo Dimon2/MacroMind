@@ -18,7 +18,7 @@ class _FakeConnection:
     def __init__(self, rows: list[tuple]) -> None:
         self._rows = rows
 
-    def execute(self, _query: str):
+    def execute(self, _query: str, _params: tuple | None = None):
         return _FakeCursor(self._rows)
 
 
@@ -46,6 +46,47 @@ def test_macro_repository_load_latest_datapoints(monkeypatch) -> None:
     assert len(result) == 1
     assert result[0].indicator == "DGS10"
     assert result[0].metadata["category"] == "rates"
+
+
+def test_macro_repository_load_observations(monkeypatch) -> None:
+    rows = [
+        (
+            "fred",
+            "CPIAUCSL",
+            310.0,
+            "index",
+            date(2026, 4, 1),
+            datetime(2026, 6, 2, 10, 0, tzinfo=timezone.utc),
+            "CPI",
+            "Monthly",
+            "inflation",
+        ),
+        (
+            "fred",
+            "CPIAUCSL",
+            308.0,
+            "index",
+            date(2026, 3, 1),
+            datetime(2026, 6, 2, 10, 0, tzinfo=timezone.utc),
+            "CPI",
+            "Monthly",
+            "inflation",
+        ),
+    ]
+
+    @contextmanager
+    def fake_scope():
+        yield _FakeConnection(rows)
+
+    monkeypatch.setattr("macromind.db.repository.connection_scope", fake_scope)
+    result = MacroRepository().load_observations("fred", ["CPIAUCSL"], last_n=15)
+    assert len(result) == 2
+    assert result[0].indicator == "CPIAUCSL"
+    assert result[0].period == "2026-04-01"
+
+
+def test_macro_repository_load_observations_empty_series_ids() -> None:
+    assert MacroRepository().load_observations("fred", [], last_n=15) == []
 
 
 def test_prediction_market_repository_load_latest_snapshots(monkeypatch) -> None:
