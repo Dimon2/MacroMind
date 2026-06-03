@@ -13,12 +13,15 @@ from macromind.signals.models import SignalResult
 
 
 class SignalService:
-    def compute(self, observations: list[NormalizedObservation]) -> dict[str, Any]:
-        results: list[SignalResult] = [
+    def compute_results(self, observations: list[NormalizedObservation]) -> list[SignalResult]:
+        return [
             compute_risk_regime(observations),
             compute_rates_curve_proxy(observations),
             compute_macro_implied_inflation_prob(observations),
         ]
+
+    def compute(self, observations: list[NormalizedObservation]) -> dict[str, Any]:
+        results = self.compute_results(observations)
         coverage = {
             "computed": sum(1 for result in results if result.status == "computed"),
             "skipped": sum(1 for result in results if result.status == "skipped"),

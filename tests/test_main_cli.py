@@ -49,6 +49,39 @@ def test_migrate_then_crawl_status() -> None:
     assert json.loads(buf.getvalue()) == {"missing": []}
 
 
+def test_snapshot_signals_prints_payload() -> None:
+    payload = {
+        "snapshot_date": "2026-06-02",
+        "saved": 3,
+        "deltas": [],
+        "previous_snapshot_date": None,
+    }
+    buf = StringIO()
+    with (
+        patch.object(main_module, "run_snapshot_signals", return_value=payload),
+        patch.object(main_module.sys, "argv", ["main.py", "--snapshot-signals"]),
+        patch.object(main_module.sys, "stdout", buf),
+    ):
+        main_module.main()
+    assert json.loads(buf.getvalue()) == payload
+
+
+def test_snapshot_signals_excludes_persist() -> None:
+    with patch.object(
+        main_module.sys, "argv", ["main.py", "--snapshot-signals", "--persist-all"]
+    ):
+        with pytest.raises(SystemExit):
+            main_module.main()
+
+
+def test_signals_and_snapshot_signals_mutually_exclusive() -> None:
+    with patch.object(
+        main_module.sys, "argv", ["main.py", "--signals", "--snapshot-signals"]
+    ):
+        with pytest.raises(SystemExit):
+            main_module.main()
+
+
 def test_crawl_status_exits_one_when_unhealthy() -> None:
     with (
         patch.object(main_module, "build_crawl_status", return_value={"missing": ["fred"]}),

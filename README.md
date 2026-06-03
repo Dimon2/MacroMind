@@ -236,8 +236,23 @@ LIMIT 20;"
 Compute signals from persisted data (read-only):
 
 ```powershell
-$env:PYTHONPATH="src"
 .\.venv\Scripts\python.exe main.py --signals
+```
+
+Save daily signal snapshots and day-over-day deltas (run after ingest):
+
+```powershell
+.\.venv\Scripts\python.exe main.py --migrate --persist-all
+.\.venv\Scripts\python.exe main.py --snapshot-signals
+```
+
+Inspect snapshots in Postgres:
+
+```bash
+docker exec -it postgres psql -U admin -d market_db -c "
+SELECT snapshot_date, signal_name, status, value, label
+FROM signal_snapshots
+ORDER BY snapshot_date DESC, signal_name;"
 ```
 
 Preview all crawlers (fred/market live APIs; nyfed/polymarket are stubs):
