@@ -209,11 +209,28 @@ WHERE source = 'yfinance'
 ORDER BY observation_date DESC, series_id;"
 ```
 
-Persist FRED + Kalshi + market in one command:
+Persist FRED + Kalshi + market in one command (logs each run to `crawl_runs`):
 
 ```powershell
-$env:PYTHONPATH="src"
-.\.venv\Scripts\python.exe main.py --persist-all
+.\.venv\Scripts\python.exe main.py --migrate --persist-all
+```
+
+If one crawler fails, the others still run; the process exits with code 1 when any run failed.
+
+Check last crawl status without fetching (read-only):
+
+```powershell
+.\.venv\Scripts\python.exe main.py --crawl-status
+```
+
+Inspect recent runs in Postgres:
+
+```bash
+docker exec -it postgres psql -U admin -d market_db -c "
+SELECT crawler, status, finished_at, rows_persisted, left(error_text, 80) AS err
+FROM crawl_runs
+ORDER BY finished_at DESC
+LIMIT 20;"
 ```
 
 Compute signals from persisted data (read-only):

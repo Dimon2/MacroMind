@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 from macromind.db.connection import connection_scope
+from macromind.db.crawl_run import CrawlRunRecord, truncate_error_text
 from macromind.models import DataPoint
 from macromind.prediction_markets.models import PredictionMarketSnapshot
 
@@ -300,6 +301,64 @@ class MacroRepository:
             period=row[4].isoformat(),
             fetched_at=_as_utc_datetime(row[5]),
             metadata=metadata,
+        )
+
+
+class CrawlRunRepository:
+    def record_run(self, record: CrawlRunRecord) -> None:
+        with connection_scope() as conn:
+            conn.execute(
+                """
+                INSERT INTO crawl_runs (
+                  crawler, started_at, finished_at, status, rows_persisted, error_text
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    record.crawler,
+                    record.started_at,
+                    record.finished_at,
+                    record.status,
+                    record.rows_persisted,
+                    truncate_error_text(record.error_text),
+                ),
+            )
+
+    def load_last_success_by_crawler(self) -> dict[str, CrawlRunRecord]:
+        return self._load_latest_by_crawler(status="success")
+
+    def load_last_run_by_crawler(self) -> dict[str, CrawlRunRecord]:
+        return self._load_latest_by_crawler(status=None)
+
+    def _load_latest_by_crawler(
+        self, *, status: str | None
+    ) -> dict[str, CrawlRunRecord]:
+        where_clause = "WHERE status = %s" if status is not None else ""
+        params: tuple[object, ...] = (status,) if status is not None else ()
+
+        with connection_scope() as conn:
+            rows = conn.execute(
+                f"""
+                SELECT DISTINCT ON (crawler)
+                  crawler, started_at, finished_at, status, rows_persisted, error_text
+                FROM crawl_runs
+                {where_clause}
+                ORDER BY crawler, finished_at DESC
+                """,
+                params,
+            ).fetchall()
+
+        return {row[0]: self._row_to_record(row) for row in rows}
+
+    @staticmethod
+    def _row_to_record(row: tuple) -> CrawlRunRecord:
+        return CrawlRunRecord(
+            crawler=row[0],
+            started_at=_as_utc_datetime(row[1]),
+            finished_at=_as_utc_datetime(row[2]),
+            status=row[3],
+            rows_persisted=int(row[4]),
+            error_text=row[5],
         )
 
 
