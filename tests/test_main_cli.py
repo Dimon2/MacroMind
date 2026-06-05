@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import main as main_module
+from macromind.brief.pipeline import NoSnapshotError
 from macromind.ingestion.persist import CrawlRunResult, PersistAllReport
 
 
@@ -142,6 +144,41 @@ def test_persist_all_runs_all_handlers() -> None:
     assert payload["total"] == 26
     assert len(payload["runs"]) == 3
     persist_all.assert_called_once()
+
+
+def test_brief_prints_markdown() -> None:
+    brief = "# MacroMind Daily Brief — 2026-06-05\n\n## Market state"
+    buf = StringIO()
+    with (
+        patch.object(main_module, "run_brief", return_value=brief),
+        patch.object(main_module.sys, "argv", ["main.py", "--brief"]),
+        patch.object(main_module.sys, "stdout", buf),
+    ):
+        main_module.main()
+    assert buf.getvalue().strip() == brief
+
+
+def test_brief_exits_one_when_no_snapshot() -> None:
+    stderr = StringIO()
+    with (
+        patch.object(
+            main_module,
+            "run_brief",
+            side_effect=NoSnapshotError(date(2026, 6, 5)),
+        ),
+        patch.object(main_module.sys, "argv", ["main.py", "--brief"]),
+        patch.object(main_module.sys, "stderr", stderr),
+    ):
+        with pytest.raises(SystemExit) as exc:
+            main_module.main()
+        assert exc.value.code == 1
+    assert "--snapshot-signals" in stderr.getvalue()
+
+
+def test_brief_and_snapshot_signals_mutually_exclusive() -> None:
+    with patch.object(main_module.sys, "argv", ["main.py", "--brief", "--snapshot-signals"]):
+        with pytest.raises(SystemExit):
+            main_module.main()
 
 
 def test_persist_market_only() -> None:

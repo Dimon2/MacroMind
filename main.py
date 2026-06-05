@@ -10,6 +10,7 @@ _SRC = Path(__file__).resolve().parent / "src"
 if str(_SRC) not in sys.path:
     sys.path.insert(0, str(_SRC))
 
+from macromind.brief.pipeline import NoSnapshotError, run_brief
 from macromind.db.migrate import run_migrations
 from macromind.ingestion.crawl_status import build_crawl_status, crawl_status_is_healthy
 from macromind.ingestion.persist import run_persist_all_with_logging, run_persist_with_logging
@@ -61,6 +62,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Print last crawl run / last success per persisted crawler (read-only, no fetch).",
     )
+    parser.add_argument(
+        "--brief",
+        action="store_true",
+        help="Render deterministic daily brief from snapshots (read-only, stdout).",
+    )
     return parser
 
 
@@ -77,7 +83,7 @@ def _run_signals() -> dict[str, Any]:
 
 
 def _is_standalone_action(args: argparse.Namespace) -> bool:
-    return args.signals or args.crawl_status or args.snapshot_signals
+    return args.signals or args.crawl_status or args.snapshot_signals or args.brief
 
 
 def _validate_standalone_exclusivity(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
@@ -88,6 +94,8 @@ def _validate_standalone_exclusivity(parser: argparse.ArgumentParser, args: argp
         standalone_flags.append("--snapshot-signals")
     if args.crawl_status:
         standalone_flags.append("--crawl-status")
+    if args.brief:
+        standalone_flags.append("--brief")
 
     if len(standalone_flags) > 1:
         parser.error(
@@ -121,7 +129,7 @@ def main() -> None:
         parser.print_help(sys.stderr)
         print(
             "\nSpecify an action: --migrate, --signals, --snapshot-signals, --crawl-status, "
-            "--persist-all, --crawler NAME [--persist], or --crawler all",
+            "--brief, --persist-all, --crawler NAME [--persist], or --crawler all",
             file=sys.stderr,
         )
         sys.exit(2)
@@ -138,6 +146,18 @@ def main() -> None:
         status = build_crawl_status(PERSIST_CRAWLERS)
         print(json.dumps(status, indent=2))
         if not crawl_status_is_healthy(status, PERSIST_CRAWLERS):
+            sys.exit(1)
+        return
+
+    if args.brief:
+        try:
+            print(run_brief())
+        except NoSnapshotError as exc:
+            print(
+                f"No snapshots for {exc.snapshot_date.isoformat()}. "
+                "Run: python main.py --snapshot-signals",
+                file=sys.stderr,
+            )
             sys.exit(1)
         return
 
