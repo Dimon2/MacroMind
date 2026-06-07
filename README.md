@@ -280,6 +280,48 @@ Preview all crawlers (fred/market live APIs; nyfed/polymarket are stubs):
 .\.venv\Scripts\python.exe main.py --crawler all
 ```
 
+### Read-only HTTP API
+
+After ingest and `--snapshot-signals`, a thin FastAPI layer exposes persisted data (no writes). Daily cron stays CLI-first:
+
+```powershell
+# Typical daily chain (cron)
+.\.venv\Scripts\python.exe main.py --migrate --persist-all
+.\.venv\Scripts\python.exe main.py --snapshot-signals
+.\.venv\Scripts\python.exe main.py --brief
+```
+
+Install API dependencies (included in `requirements.txt`):
+
+```powershell
+pip install -r requirements.txt
+```
+
+Start the server (default `127.0.0.1:8000`; override with `API_HOST` / `API_PORT`):
+
+```powershell
+$env:PYTHONPATH="src"
+.\.venv\Scripts\python.exe api_main.py
+```
+
+Endpoints:
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | DB liveness; optional `?freshness=true` adds `crawl_runs` summary |
+| GET | `/signals/latest` | Latest day from `signal_snapshots` + deltas |
+| GET | `/macro/{series_id}?limit=N&source=fred` | Last N observations (`source=yfinance` for market proxies) |
+
+Examples:
+
+```powershell
+curl http://127.0.0.1:8000/health
+curl "http://127.0.0.1:8000/health?freshness=true"
+curl http://127.0.0.1:8000/signals/latest
+curl "http://127.0.0.1:8000/macro/DGS10?limit=90"
+curl "http://127.0.0.1:8000/macro/VIX?source=yfinance&limit=30"
+```
+
 ## Success criteria
 
 **MVP:** a user can ask a macro/liquidity/risk question and get a useful answer grounded in DB rows and signals, with verifiable citations.

@@ -15,6 +15,8 @@ class Settings:
     database_url: str
     kalshi_api_base: str
     fred_api_key: str
+    api_host: str
+    api_port: int
     repo_root: Path
 
     @classmethod
@@ -29,6 +31,8 @@ class Settings:
                 "https://external-api.kalshi.com/trade-api/v2",
             ).rstrip("/"),
             fred_api_key=os.getenv("FRED_API_KEY", "").strip(),
+            api_host=os.getenv("API_HOST", "127.0.0.1"),
+            api_port=int(os.getenv("API_PORT", "8000")),
             repo_root=_REPO_ROOT,
         )
 

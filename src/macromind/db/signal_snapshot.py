@@ -88,6 +88,18 @@ class SignalSnapshotRepository:
             ).fetchall()
         return [self._row_to_snapshot(row) for row in rows]
 
+    def load_latest_date(self) -> date | None:
+        with connection_scope() as conn:
+            row = conn.execute(
+                """
+                SELECT MAX(snapshot_date)
+                FROM signal_snapshots
+                """
+            ).fetchone()
+        if row is None or row[0] is None:
+            return None
+        return row[0]
+
     def load_previous_date(self, before: date) -> date | None:
         with connection_scope() as conn:
             row = conn.execute(

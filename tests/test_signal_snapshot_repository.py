@@ -104,3 +104,28 @@ def test_load_previous_date(monkeypatch) -> None:
     monkeypatch.setattr("macromind.db.signal_snapshot.connection_scope", fake_scope)
     result = SignalSnapshotRepository().load_previous_date(_DAY)
     assert result == date(2026, 6, 1)
+
+
+def test_load_latest_date(monkeypatch) -> None:
+    conn = _RecordingConnection()
+    conn.cursor._fetchone = (_DAY,)
+
+    @contextmanager
+    def fake_scope():
+        yield conn
+
+    monkeypatch.setattr("macromind.db.signal_snapshot.connection_scope", fake_scope)
+    result = SignalSnapshotRepository().load_latest_date()
+    assert result == _DAY
+
+
+def test_load_latest_date_empty(monkeypatch) -> None:
+    conn = _RecordingConnection()
+    conn.cursor._fetchone = (None,)
+
+    @contextmanager
+    def fake_scope():
+        yield conn
+
+    monkeypatch.setattr("macromind.db.signal_snapshot.connection_scope", fake_scope)
+    assert SignalSnapshotRepository().load_latest_date() is None
