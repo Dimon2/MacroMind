@@ -12,10 +12,10 @@ export function Nav() {
   return (
     <nav className="flex gap-1">
       <NavLink to="/" end className={linkClass}>
-        Desk
-      </NavLink>
-      <NavLink to="/brief" className={linkClass}>
         Brief
+      </NavLink>
+      <NavLink to="/desk" className={linkClass}>
+        Desk
       </NavLink>
     </nav>
   )

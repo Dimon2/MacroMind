@@ -14,7 +14,7 @@ export function MacroPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2 text-sm text-zinc-500">
-        <Link to="/" className="text-zinc-400 hover:text-zinc-200">
+        <Link to="/desk" className="text-zinc-400 hover:text-zinc-200">
           Desk
         </Link>
         <span>/</span>

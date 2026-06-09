@@ -80,7 +80,17 @@ export const deskFixture: DeskData = {
   },
   overlays: {
     inflation_pm: {
-      markets: [{ yes_probability: 0.4 }],
+      markets: [
+        {
+          market_ticker: 'KXCPIYOY-26JUN-T3.0',
+          outcome_label: 'Above 3.0%',
+          yes_probability: 0.4,
+          event_ticker: 'KXCPIYOY-26JUN',
+          strike: 3.0,
+          strike_op: 'above',
+          unit_hint: 'percent',
+        },
+      ],
       status: 'computed',
     },
     fed_compare: {

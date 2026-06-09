@@ -92,6 +92,12 @@ def _pm_market_rows(observations: list[NormalizedObservation]) -> list[dict[str,
         strike = obs.metadata.get("strike")
         if strike is not None:
             row["strike"] = strike
+        strike_op = obs.metadata.get("strike_op")
+        if strike_op is not None:
+            row["strike_op"] = strike_op
+        unit_hint = obs.metadata.get("unit_hint")
+        if unit_hint is not None:
+            row["unit_hint"] = unit_hint
         rows.append(row)
     return rows
 

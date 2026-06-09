@@ -9,8 +9,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<DeskPage />} />
-        <Route path="brief" element={<BriefPage />} />
+        <Route index element={<BriefPage />} />
+        <Route path="desk" element={<DeskPage />} />
         <Route path="macro/:seriesId" element={<MacroPage />} />
         <Route path="404" element={<NotFoundPage />} />
         <Route path="*" element={<Navigate to="/404" replace />} />
