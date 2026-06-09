@@ -85,6 +85,16 @@ Based on project map in `macromind_data_sources_en.pdf` (legacy filename `ai_mar
 
 ## Getting started
 
+### Frontend dev
+
+```powershell
+cd UI
+npm install
+npm run dev
+```
+
+React SPA with mock data in `UI/src/hooks/` — API wiring comes later.
+
 ### Current Python layout
 
 - `main.py` — CLI: crawlers, persist, `--signals`

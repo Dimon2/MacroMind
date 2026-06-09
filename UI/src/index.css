@@ -1,0 +1,14 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, Consolas, monospace;
+}
+
+body {
+  @apply m-0 min-h-svh bg-zinc-950 text-zinc-300 font-sans antialiased;
+}
+
+#root {
+  @apply min-h-svh;
+}
