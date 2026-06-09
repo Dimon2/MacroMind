@@ -1,8 +1,13 @@
 import type { SignalDelta } from '../types/desk'
 
-const EXCLUDED_SIGNALS = new Set(['market_state'])
+/** Composite + overlay signals — not shown in desk/brief change lists */
+export const EXCLUDED_CHANGE_SIGNALS = new Set([
+  'market_state',
+  'fed_rate_context',
+  'inflation_pm_overlay',
+])
 
-function hasMaterialChange(delta: SignalDelta): boolean {
+export function hasMaterialChange(delta: SignalDelta): boolean {
   if (delta.label_changed) return true
   if (delta.value_delta != null && delta.value_delta !== 0) return true
   return false
@@ -13,16 +18,29 @@ function sortKey(delta: SignalDelta): [number, number, string] {
   return [-Number(delta.label_changed), -absDelta, delta.signal_name]
 }
 
-export function rankTopDeltas(deltas: SignalDelta[], n = 3): SignalDelta[] {
-  const pool = deltas.filter(
-    (delta) => !EXCLUDED_SIGNALS.has(delta.signal_name) && hasMaterialChange(delta),
-  )
-  pool.sort((a, b) => {
+export function sortDeltas(deltas: SignalDelta[]): SignalDelta[] {
+  return [...deltas].sort((a, b) => {
     const [aLabel, aDelta, aName] = sortKey(a)
     const [bLabel, bDelta, bName] = sortKey(b)
     if (aLabel !== bLabel) return aLabel - bLabel
     if (aDelta !== bDelta) return aDelta - bDelta
     return aName.localeCompare(bName)
   })
-  return pool.slice(0, n)
+}
+
+function filterMaterialRegimeDeltas(deltas: SignalDelta[]): SignalDelta[] {
+  return deltas.filter(
+    (delta) =>
+      !EXCLUDED_CHANGE_SIGNALS.has(delta.signal_name) && hasMaterialChange(delta),
+  )
+}
+
+/** Brief: top N material regime changes */
+export function rankTopDeltas(deltas: SignalDelta[], n = 3): SignalDelta[] {
+  return sortDeltas(filterMaterialRegimeDeltas(deltas)).slice(0, n)
+}
+
+/** Desk: all material regime changes, sorted by importance */
+export function filterDeskDeltas(deltas: SignalDelta[]): SignalDelta[] {
+  return sortDeltas(filterMaterialRegimeDeltas(deltas))
 }
