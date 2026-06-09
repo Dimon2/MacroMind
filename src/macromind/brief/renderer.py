@@ -19,6 +19,9 @@ def render_brief(ctx: BriefContext) -> str:
         "## Market state",
         _render_market_state(ctx),
         "",
+        "## Liquidity",
+        _render_liquidity_detail(ctx),
+        "",
         "## What changed (top 3)",
         _render_top_deltas(ctx),
         "",
@@ -79,12 +82,40 @@ def _render_market_state(ctx: BriefContext) -> str:
     liquidity = dimensions.get("liquidity_regime") or "—"
     inflation = dimensions.get("inflation_regime") or "—"
     growth = dimensions.get("growth_regime") or "—"
+    credit = dimensions.get("credit_regime") or "—"
 
     return (
         f"**Composite:** {composite}  \n"
         f"**Risk:** {risk} · **Liquidity:** {liquidity} · "
-        f"**Inflation:** {inflation} · **Growth:** {growth}"
+        f"**Inflation:** {inflation} · **Growth:** {growth} · **Credit:** {credit}"
     )
+
+
+def _render_liquidity_detail(ctx: BriefContext) -> str:
+    row = ctx.snapshot("liquidity_regime")
+    if row is None or row.status != "computed":
+        reason = row.reason if row is not None else "missing"
+        return f"— ({reason})"
+
+    inputs = row.inputs or {}
+    net = inputs.get("net_liquidity")
+    net_chg = inputs.get("net_liquidity_change_wow_pct")
+    net_date = inputs.get("net_liquidity_date", "—")
+    mom = inputs.get("M2SL_change_mom_pct")
+    yoy = inputs.get("M2SL_yoy_pct")
+    yoy_status = inputs.get("M2SL_yoy_status", "—")
+
+    lines = [
+        f"**Net liquidity:** {_format_num(net) if net is not None else '—'} M USD "
+        f"(WoW {_format_delta_pct(net_chg)}, as of {net_date})",
+    ]
+    if mom is not None:
+        lines.append(f"**M2 MoM:** {_format_delta_pct(mom)}")
+    if yoy is not None:
+        lines.append(f"**M2 YoY:** {_format_delta_pct(yoy)}")
+    elif yoy_status != "computed":
+        lines.append(f"**M2 YoY:** — ({yoy_status})")
+    return "  \n".join(lines)
 
 
 def _render_top_deltas(ctx: BriefContext) -> str:
@@ -128,27 +159,64 @@ def _format_delta(value: float) -> str:
     return f"{sign}{value:.4f}".rstrip("0").rstrip(".")
 
 
+def _format_delta_pct(value: float | None) -> str:
+    if value is None:
+        return "—"
+    sign = "+" if value > 0 else ""
+    return f"{sign}{value:.2f}%"
+
+
 def _render_overlays(ctx: BriefContext) -> str:
-    curve_line = _render_curve_overlay(ctx.snapshot("rates_curve_proxy"))
-    pm_line = _render_pm_overlay(ctx.snapshot("macro_implied_inflation_prob"))
-    return f"- {curve_line}\n- {pm_line}"
+    growth_line = _render_growth_curve_overlay(ctx.snapshot("growth_regime"))
+    pm_line = _render_inflation_pm_overlay(ctx.snapshot("inflation_pm_overlay"))
+    fed_line = _render_fed_overlay(ctx.snapshot("fed_rate_context"))
+    return f"- {growth_line}\n- {pm_line}\n- {fed_line}"
 
 
-def _render_curve_overlay(row: SignalSnapshotRow | None) -> str:
+def _render_growth_curve_overlay(row: SignalSnapshotRow | None) -> str:
     if row is None or row.status != "computed":
         reason = row.reason if row is not None else "missing"
-        return f"**Curve (rates_curve_proxy):** — ({reason})"
+        return f"**Curve (growth):** — ({reason})"
 
-    curve_state = row.label or row.metadata.get("curve_state", "—")
-    spread = _format_num(row.value) if row.value is not None else "—"
-    return f"**Curve (rates_curve_proxy):** {curve_state} (spread {spread})"
+    inputs = row.inputs or {}
+    curve_state = inputs.get("curve_state", "—")
+    spread = inputs.get("curve_spread")
+    spread_str = _format_num(spread) if spread is not None else "—"
+    return f"**Curve (growth):** {curve_state} (spread {spread_str})"
 
 
-def _render_pm_overlay(row: SignalSnapshotRow | None) -> str:
-    if row is None or row.status != "computed" or row.value is None:
+def _render_inflation_pm_overlay(row: SignalSnapshotRow | None) -> str:
+    if row is None or row.status != "computed":
         reason = row.reason if row is not None else "missing"
-        return f"**PM inflation prob:** — ({reason})"
+        return f"**PM inflation:** — ({reason})"
 
-    markets_count = row.inputs.get("markets_count", "—")
-    pct = f"{row.value * 100:.1f}%"
-    return f"**PM inflation prob:** {pct} ({markets_count} markets)"
+    markets = row.inputs.get("markets") or []
+    if not markets:
+        return "**PM inflation:** — (no markets)"
+    parts = []
+    for market in markets[:5]:
+        label = market.get("outcome_label") or market.get("market_ticker")
+        prob = market.get("yes_probability")
+        if prob is not None:
+            parts.append(f"{label}: {prob * 100:.1f}%")
+    return f"**PM inflation:** {', '.join(parts)}"
+
+
+def _render_fed_overlay(row: SignalSnapshotRow | None) -> str:
+    if row is None or row.status != "computed":
+        reason = row.reason if row is not None else "missing"
+        return f"**Fed compare:** — ({reason})"
+
+    inputs = row.inputs or {}
+    rate = inputs.get("effective_rate")
+    rate_str = f"{rate}%" if rate is not None else "—"
+    markets = inputs.get("kalshi_markets") or []
+    if not markets:
+        return f"**Fed compare:** effective {rate_str}"
+    parts = []
+    for market in markets[:5]:
+        label = market.get("outcome_label") or market.get("market_ticker")
+        prob = market.get("yes_probability")
+        if prob is not None:
+            parts.append(f"{label}: {prob * 100:.1f}%")
+    return f"**Fed compare:** effective {rate_str}; Kalshi: {', '.join(parts)}"

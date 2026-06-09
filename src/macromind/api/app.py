@@ -4,13 +4,13 @@ from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
 
+from macromind.api.read.desk import NoSnapshotsError, load_latest_desk
 from macromind.api.read.health import build_health_response
 from macromind.api.read.macro import (
     MACRO_LIMIT_DEFAULT,
     SeriesNotFoundError,
     load_macro_series,
 )
-from macromind.api.read.signals import NoSnapshotsError, load_latest_signals
 
 
 def create_app() -> FastAPI:
@@ -26,10 +26,10 @@ def create_app() -> FastAPI:
     ) -> dict:
         return build_health_response(include_freshness=freshness)
 
-    @app.get("/signals/latest")
-    def signals_latest() -> dict:
+    @app.get("/desk/latest")
+    def desk_latest() -> dict:
         try:
-            return load_latest_signals()
+            return load_latest_desk()
         except NoSnapshotsError:
             raise HTTPException(status_code=404, detail="no signal snapshots found")
 

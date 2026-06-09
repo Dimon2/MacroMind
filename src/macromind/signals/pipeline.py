@@ -4,10 +4,10 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from macromind.db.repository import MacroRepository, PredictionMarketRepository
-from macromind.db.signal_snapshot import SignalSnapshotRepository
+from macromind.db.signal_snapshot import SignalSnapshotRepository, SignalSnapshotRow, rows_from_results
 from macromind.market.normalized_feed_service import NormalizedFeedService
 from macromind.models import DataPoint
-from macromind.signals.delta import build_deltas_for_date
+from macromind.signals.delta import build_deltas
 from macromind.signals.regime_series import (
     FRED_SOURCE,
     REGIME_HISTORY_LAST_N,
@@ -81,7 +81,7 @@ def run_snapshot_signals(
     )
     results = service.compute_results(normalized)
     saved = repo.upsert_for_date(day, results)
-    prev_date, deltas = build_deltas_for_date(day, repo)
+    prev_date, deltas = build_deltas(rows_from_results(day, results), repo)
 
     coverage = {
         "computed": sum(1 for r in results if r.status == "computed"),

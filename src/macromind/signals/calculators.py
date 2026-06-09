@@ -1,15 +1,20 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from statistics import mean
+from datetime import date, datetime, timezone
+from typing import Any
 
 from macromind.market.normalized_observation import NormalizedObservation
 from macromind.signals.models import SignalResult
 
-# Liquidity (WALCL WoW %, RRP/TGA drain)
-LIQUIDITY_WALCL_EASY_PCT = 0.25
-LIQUIDITY_WALCL_TIGHT_PCT = -0.25
+# Net liquidity trend (WoW % on aligned WALCL − TGA − RRP)
+NET_LIQUIDITY_EASY_PCT = 0.25
+NET_LIQUIDITY_TIGHT_PCT = -0.25
 LIQUIDITY_DRAIN_PCT = 1.0
+RRP_BILLIONS_TO_MILLIONS = 1000.0
+
+# M2 YoY (monthly)
+M2_YOY_LAG_MONTHS = 12
+M2_MIN_POINTS_YOY = 13
 
 # Inflation YoY on CPI index (13 monthly points)
 CPI_YOY_LAG_MONTHS = 12
@@ -17,16 +22,23 @@ CPI_MIN_POINTS = 13
 INFLATION_YOY_RISING_PCT = 3.5
 INFLATION_YOY_FALLING_PCT = 2.5
 
-# Growth (UNRATE Δ pp, curve, optional SPY)
+# Growth (UNRATE Δ pp, curve; SPY optional context in inputs only)
 GROWTH_UNRATE_EXPANDING_PP = -0.05
 GROWTH_UNRATE_CONTRACTING_PP = 0.05
+
+# Credit HY OAS spread (percent)
+CREDIT_RELAXED_PCT = 3.5
+CREDIT_STRESSED_PCT = 5.0
 
 MARKET_STATE_DIMENSIONS: tuple[str, ...] = (
     "risk_regime",
     "liquidity_regime",
     "inflation_regime",
     "growth_regime",
+    "credit_regime",
 )
+
+_NET_LIQUIDITY_SERIES = ("WALCL", "WTREGEN", "RRPONTSYD")
 
 
 def compute_risk_regime(observations: list[NormalizedObservation]) -> SignalResult:
@@ -69,102 +81,49 @@ def compute_risk_regime(observations: list[NormalizedObservation]) -> SignalResu
     )
 
 
-def compute_rates_curve_proxy(observations: list[NormalizedObservation]) -> SignalResult:
-    by_key = _latest_by_series_key(observations)
-    t10y2y = by_key.get("T10Y2Y")
-    if t10y2y is not None:
-        spread = t10y2y.value
-        as_of = t10y2y.fetched_at
-        inputs = {"T10Y2Y": spread}
-    else:
-        dgs10 = by_key.get("DGS10")
-        dgs2 = by_key.get("DGS2")
-        if dgs10 is None or dgs2 is None:
-            return _skipped(
-                name="rates_curve_proxy",
-                reason="missing_required_inputs",
-                inputs={"required": ["T10Y2Y or (DGS10 and DGS2)"]},
-            )
-        spread = dgs10.value - dgs2.value
-        as_of = max(dgs10.fetched_at, dgs2.fetched_at)
-        inputs = {"DGS10": dgs10.value, "DGS2": dgs2.value}
-
-    return SignalResult(
-        name="rates_curve_proxy",
-        status="computed",
-        value=float(spread),
-        inputs=inputs,
-        metadata={"curve_state": "inverted" if spread < 0 else "normal"},
-        as_of=as_of,
-    )
-
-
-def compute_macro_implied_inflation_prob(
-    observations: list[NormalizedObservation],
-) -> SignalResult:
-    inflation = [
-        obs
-        for obs in observations
-        if obs.value_kind == "probability" and str(obs.metadata.get("macro_topic", "")).lower() == "inflation"
-    ]
-    if not inflation:
-        return _skipped(
-            name="macro_implied_inflation_prob",
-            reason="missing_required_inputs",
-            inputs={"required": ["probability observations with macro_topic=inflation"]},
-        )
-
-    latest_obs = max(inflation, key=lambda item: (item.observation_date, item.fetched_at))
-    values = [item.value for item in inflation]
-    return SignalResult(
-        name="macro_implied_inflation_prob",
-        status="computed",
-        value=float(mean(values)),
-        inputs={"markets_count": len(values), "latest_market": latest_obs.series_key},
-        metadata={
-            "latest_value": latest_obs.value,
-            "latest_observation_date": latest_obs.observation_date.isoformat(),
-        },
-        as_of=latest_obs.fetched_at,
-    )
-
-
 def compute_liquidity_regime(observations: list[NormalizedObservation]) -> SignalResult:
-    walcl_hist = _series_history(observations, "WALCL")
-    if len(walcl_hist) < 2:
+    net_series = _compute_net_liquidity_series(observations)
+    if len(net_series) < 2:
         return _skipped(
             name="liquidity_regime",
             reason="insufficient_history",
             inputs={
-                "required_series": "WALCL",
-                "required_points": 2,
-                "points": len(walcl_hist),
+                "required": "aligned WALCL, WTREGEN, RRPONTSYD",
+                "aligned_points": len(net_series),
             },
         )
 
-    score = 0
-    walcl_chg = _pct_change(walcl_hist[0].value, walcl_hist[1].value)
-    inputs: dict[str, object] = {
-        "WALCL_change_pct": walcl_chg,
-        "WALCL_latest_date": walcl_hist[0].observation_date.isoformat(),
-    }
+    latest_date, latest_net = net_series[0]
+    prior_date, prior_net = net_series[1]
+    net_chg = _pct_change(latest_net, prior_net)
 
-    if walcl_chg is not None:
-        if walcl_chg > LIQUIDITY_WALCL_EASY_PCT:
+    score = 0
+    if net_chg is not None:
+        if net_chg > NET_LIQUIDITY_EASY_PCT:
             score += 2
-        elif walcl_chg < LIQUIDITY_WALCL_TIGHT_PCT:
+        elif net_chg < NET_LIQUIDITY_TIGHT_PCT:
             score -= 2
 
-    as_of = walcl_hist[0].fetched_at
+    as_of = _latest_as_of_for_series(observations, _NET_LIQUIDITY_SERIES)
+    inputs: dict[str, object] = {
+        "net_liquidity": latest_net,
+        "net_liquidity_change_wow_pct": net_chg,
+        "net_liquidity_date": latest_date.isoformat(),
+        "net_liquidity_prior_date": prior_date.isoformat(),
+    }
+    inputs["components"] = _net_liquidity_components(observations, latest_date)
+
     for series_key in ("RRPONTSYD", "WTREGEN"):
         hist = _series_history(observations, series_key)
         if len(hist) < 2:
             continue
         chg = _pct_change(hist[0].value, hist[1].value)
-        inputs[f"{series_key}_change_pct"] = chg
-        as_of = max(as_of, hist[0].fetched_at)
+        inputs[f"{series_key}_change_wow_pct"] = chg
         if chg is not None and chg > LIQUIDITY_DRAIN_PCT:
             score -= 1
+
+    m2_inputs = _m2_overlay_inputs(observations)
+    inputs.update(m2_inputs)
 
     label = "neutral"
     if score >= 2:
@@ -182,34 +141,72 @@ def compute_liquidity_regime(observations: list[NormalizedObservation]) -> Signa
     )
 
 
+def compute_credit_regime(observations: list[NormalizedObservation]) -> SignalResult:
+    by_key = _latest_by_series_key(observations)
+    spread_obs = by_key.get("BAMLH0A0HYM2")
+    if spread_obs is None:
+        return _skipped(
+            name="credit_regime",
+            reason="missing_required_inputs",
+            inputs={"required": ["BAMLH0A0HYM2"], "available": sorted(by_key.keys())},
+        )
+
+    spread = spread_obs.value
+    if spread < CREDIT_RELAXED_PCT:
+        label = "relaxed"
+    elif spread > CREDIT_STRESSED_PCT:
+        label = "stressed"
+    else:
+        label = "normal"
+
+    inputs: dict[str, object] = {"BAMLH0A0HYM2": spread}
+    hyg = by_key.get("HYG")
+    if hyg is not None:
+        inputs["HYG_change_pct"] = _to_float(hyg.metadata.get("change_pct"))
+        as_of = max(spread_obs.fetched_at, hyg.fetched_at)
+    else:
+        as_of = spread_obs.fetched_at
+
+    return SignalResult(
+        name="credit_regime",
+        status="computed",
+        value=spread,
+        inputs=inputs,
+        metadata={"label": label},
+        as_of=as_of,
+    )
+
+
 def compute_inflation_regime(observations: list[NormalizedObservation]) -> SignalResult:
-    yoy_by_series: dict[str, float] = {}
-    counts: dict[str, int] = {}
-    latest_as_of = datetime.now(timezone.utc)
+    headline_hist = _series_history(observations, "CPIAUCSL")
+    core_hist = _series_history(observations, "CPILFESL")
+    counts = {"CPIAUCSL": len(headline_hist), "CPILFESL": len(core_hist)}
+    headline_yoy = _yoy_percent(headline_hist, lag=CPI_YOY_LAG_MONTHS)
 
-    for series_key in ("CPIAUCSL", "CPILFESL"):
-        hist = _series_history(observations, series_key)
-        counts[series_key] = len(hist)
-        yoy = _yoy_percent(hist, lag=CPI_YOY_LAG_MONTHS)
-        if yoy is not None:
-            yoy_by_series[series_key] = yoy
-            latest_as_of = max(latest_as_of, hist[0].fetched_at)
-
-    if not yoy_by_series:
+    if headline_yoy is None:
         return _skipped(
             name="inflation_regime",
             reason="insufficient_history",
             inputs={
+                "required_series": "CPIAUCSL",
                 "required_points": CPI_MIN_POINTS,
                 "lag_months": CPI_YOY_LAG_MONTHS,
                 "points": counts,
             },
         )
 
-    avg_yoy = float(mean(yoy_by_series.values()))
-    if avg_yoy > INFLATION_YOY_RISING_PCT:
+    inputs: dict[str, object] = {"headline_yoy_pct": headline_yoy}
+    core_yoy = _yoy_percent(core_hist, lag=CPI_YOY_LAG_MONTHS)
+    if core_yoy is not None:
+        inputs["core_yoy_pct"] = core_yoy
+
+    as_of = headline_hist[0].fetched_at
+    if core_hist and core_yoy is not None:
+        as_of = max(as_of, core_hist[0].fetched_at)
+
+    if headline_yoy > INFLATION_YOY_RISING_PCT:
         label = "rising"
-    elif avg_yoy < INFLATION_YOY_FALLING_PCT:
+    elif headline_yoy < INFLATION_YOY_FALLING_PCT:
         label = "falling"
     else:
         label = "stable"
@@ -217,10 +214,10 @@ def compute_inflation_regime(observations: list[NormalizedObservation]) -> Signa
     return SignalResult(
         name="inflation_regime",
         status="computed",
-        value=avg_yoy,
-        inputs={"yoy_pct_by_series": yoy_by_series},
+        value=float(headline_yoy),
+        inputs=inputs,
         metadata={"label": label},
-        as_of=latest_as_of,
+        as_of=as_of,
     )
 
 
@@ -251,12 +248,13 @@ def compute_growth_regime(observations: list[NormalizedObservation]) -> SignalRe
     }
     as_of = unrate_hist[0].fetched_at
 
-    curve = compute_rates_curve_proxy(observations)
-    if curve.status == "computed":
-        curve_state = curve.metadata.get("curve_state")
-        inputs["curve_state"] = curve_state
-        inputs["curve_spread"] = curve.value
-        as_of = max(as_of, curve.as_of)
+    curve = _curve_context(observations)
+    if curve is not None:
+        curve_as_of = curve.pop("curve_as_of", None)
+        inputs.update(curve)
+        if isinstance(curve_as_of, datetime):
+            as_of = max(as_of, curve_as_of)
+        curve_state = curve.get("curve_state")
         if curve_state == "inverted":
             score -= 1
         else:
@@ -265,14 +263,7 @@ def compute_growth_regime(observations: list[NormalizedObservation]) -> SignalRe
     by_key = _latest_by_series_key(observations)
     spy = by_key.get("SPY")
     if spy is not None:
-        spy_change = _to_float(spy.metadata.get("change_pct"))
-        inputs["SPY_change_pct"] = spy_change
-        as_of = max(as_of, spy.fetched_at)
-        if spy_change is not None:
-            if spy_change > 0:
-                score += 1
-            elif spy_change < 0:
-                score -= 1
+        inputs["SPY_change_pct"] = _to_float(spy.metadata.get("change_pct"))
 
     label = "neutral"
     if score >= 2:
@@ -312,10 +303,7 @@ def compute_market_state(dimension_results: dict[str, SignalResult]) -> SignalRe
             inputs={"missing": missing, "computed_dimensions": labels},
         )
 
-    composite = (
-        f"{labels['risk_regime']}_{labels['liquidity_regime']}_"
-        f"{labels['inflation_regime']}_{labels['growth_regime']}"
-    )
+    composite = "_".join(labels[name] for name in MARKET_STATE_DIMENSIONS)
     as_of = max(dimension_results[name].as_of for name in MARKET_STATE_DIMENSIONS)
 
     return SignalResult(
@@ -326,6 +314,112 @@ def compute_market_state(dimension_results: dict[str, SignalResult]) -> SignalRe
         metadata={"label": composite},
         as_of=as_of,
     )
+
+
+def _curve_context(observations: list[NormalizedObservation]) -> dict[str, Any] | None:
+    by_key = _latest_by_series_key(observations)
+    t10y2y = by_key.get("T10Y2Y")
+    if t10y2y is not None:
+        spread = t10y2y.value
+        as_of = t10y2y.fetched_at
+        source = "T10Y2Y"
+    else:
+        dgs10 = by_key.get("DGS10")
+        dgs2 = by_key.get("DGS2")
+        if dgs10 is None or dgs2 is None:
+            return None
+        spread = dgs10.value - dgs2.value
+        as_of = max(dgs10.fetched_at, dgs2.fetched_at)
+        source = "DGS10-DGS2"
+
+    return {
+        "curve_spread": float(spread),
+        "curve_state": "inverted" if spread < 0 else "normal",
+        "curve_source": source,
+        "curve_as_of": as_of,
+    }
+
+
+def _compute_net_liquidity_series(
+    observations: list[NormalizedObservation],
+) -> list[tuple[date, float]]:
+    by_series: dict[str, dict[date, float]] = {}
+    for series_key in _NET_LIQUIDITY_SERIES:
+        hist = _series_history(observations, series_key)
+        by_series[series_key] = {obs.observation_date: obs.value for obs in hist}
+
+    common_dates = set(by_series["WALCL"]) & set(by_series["WTREGEN"]) & set(by_series["RRPONTSYD"])
+    if not common_dates:
+        return []
+
+    net_levels: list[tuple[date, float]] = []
+    for obs_date in common_dates:
+        walcl = by_series["WALCL"][obs_date]
+        tga = by_series["WTREGEN"][obs_date]
+        rrp_millions = by_series["RRPONTSYD"][obs_date] * RRP_BILLIONS_TO_MILLIONS
+        net_levels.append((obs_date, walcl - tga - rrp_millions))
+
+    return sorted(net_levels, key=lambda item: item[0], reverse=True)
+
+
+def _net_liquidity_components(
+    observations: list[NormalizedObservation],
+    obs_date: date,
+) -> dict[str, float]:
+    components: dict[str, float] = {}
+    for series_key in _NET_LIQUIDITY_SERIES:
+        hist = _series_history(observations, series_key)
+        for obs in hist:
+            if obs.observation_date == obs_date:
+                components[series_key] = obs.value
+                break
+    if "RRPONTSYD" in components:
+        components["RRPONTSYD_millions"] = (
+            components["RRPONTSYD"] * RRP_BILLIONS_TO_MILLIONS
+        )
+    return components
+
+
+def _m2_overlay_inputs(observations: list[NormalizedObservation]) -> dict[str, object]:
+    hist = _series_history(observations, "M2SL")
+    if not hist:
+        return {"M2SL_yoy_status": "missing"}
+
+    latest = hist[0]
+    inputs: dict[str, object] = {
+        "M2SL_latest": latest.value,
+        "M2SL_latest_date": latest.observation_date.isoformat(),
+    }
+
+    if len(hist) >= 2:
+        inputs["M2SL_change_mom_pct"] = _pct_change(hist[0].value, hist[1].value)
+    else:
+        inputs["M2SL_change_mom_pct"] = None
+
+    yoy = _yoy_percent(hist, lag=M2_YOY_LAG_MONTHS)
+    if yoy is not None:
+        inputs["M2SL_yoy_pct"] = yoy
+        inputs["M2SL_yoy_status"] = "computed"
+    else:
+        inputs["M2SL_yoy_pct"] = None
+        inputs["M2SL_yoy_status"] = "insufficient_history"
+
+    return inputs
+
+
+def _latest_as_of_for_series(
+    observations: list[NormalizedObservation],
+    series_keys: tuple[str, ...],
+) -> datetime:
+    latest = datetime.min.replace(tzinfo=timezone.utc)
+    by_key = _latest_by_series_key(observations)
+    for key in series_keys:
+        obs = by_key.get(key)
+        if obs is not None:
+            latest = max(latest, obs.fetched_at)
+    if latest == datetime.min.replace(tzinfo=timezone.utc):
+        return datetime.now(timezone.utc)
+    return latest
 
 
 def _latest_by_series_key(

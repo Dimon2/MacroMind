@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from unittest.mock import MagicMock
 
 from macromind.db.signal_snapshot import SignalSnapshotRow
-from macromind.signals.delta import build_deltas_for_date, compute_signal_deltas
+from macromind.signals.delta import build_deltas, build_deltas_for_date, compute_signal_deltas
 
 _NOW = datetime(2026, 6, 2, 12, 0, tzinfo=timezone.utc)
 _DAY = date(2026, 6, 2)
@@ -56,17 +56,33 @@ def test_compute_signal_deltas_no_previous() -> None:
     assert deltas[0].comparable is False
 
 
-def test_build_deltas_for_date_no_baseline(monkeypatch) -> None:
+def test_build_deltas_no_baseline() -> None:
     repo = MagicMock()
-    repo.load_for_date.return_value = [_row("risk_regime")]
+    current = [_row("risk_regime")]
     repo.load_previous_date.return_value = None
-    prev_date, deltas = build_deltas_for_date(_DAY, repo)
+
+    prev_date, deltas = build_deltas(current, repo)
+
     assert prev_date is None
     assert len(deltas) == 1
     assert deltas[0].prev_value is None
+    repo.load_for_date.assert_not_called()
 
 
-def test_compute_signal_deltas_market_state_label() -> None:
+def test_build_deltas_reuses_current_rows() -> None:
+    repo = MagicMock()
+    current = [_row("risk_regime", value=2.0)]
+    repo.load_previous_date.return_value = _PREV
+    repo.load_for_date.return_value = [_row("risk_regime", value=1.0, snapshot_date=_PREV)]
+
+    prev_date, deltas = build_deltas(current, repo)
+
+    assert prev_date == _PREV
+    assert deltas[0].value_delta == 1.0
+    repo.load_for_date.assert_called_once_with(_PREV)
+
+
+def test_build_deltas_for_date_with_baseline() -> None:
     current = [_row("market_state", label="risk_on_easy_stable_expanding")]
     previous = [
         _row(
@@ -80,7 +96,7 @@ def test_compute_signal_deltas_market_state_label() -> None:
     assert deltas[0].comparable is True
 
 
-def test_build_deltas_for_date_with_baseline() -> None:
+def test_compute_signal_deltas_market_state_label() -> None:
     repo = MagicMock()
     repo.load_for_date.side_effect = lambda d: (
         [_row("risk_regime", value=2.0)]

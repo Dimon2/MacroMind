@@ -32,6 +32,7 @@ series:
   - series_id: M2SL
     category: liquidity
     unit: billions_usd
+    min_points: 13
   - series_id: WRESBAL
     category: liquidity
     unit: millions_usd

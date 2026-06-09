@@ -80,18 +80,26 @@ def compute_signal_deltas(
     return deltas
 
 
-def build_deltas_for_date(
-    snapshot_date: date,
+def build_deltas(
+    current: list[SignalSnapshotRow],
     repo: SignalSnapshotRepository | None = None,
 ) -> tuple[date | None, list[SignalDelta]]:
-    snapshot_repo = repo or SignalSnapshotRepository()
-    current = snapshot_repo.load_for_date(snapshot_date)
     if not current:
         return None, []
 
+    snapshot_repo = repo or SignalSnapshotRepository()
+    snapshot_date = current[0].snapshot_date
     prev_date = snapshot_repo.load_previous_date(snapshot_date)
     if prev_date is None:
         return None, compute_signal_deltas(current, [])
 
     previous = snapshot_repo.load_for_date(prev_date)
     return prev_date, compute_signal_deltas(current, previous)
+
+
+def build_deltas_for_date(
+    snapshot_date: date,
+    repo: SignalSnapshotRepository | None = None,
+) -> tuple[date | None, list[SignalDelta]]:
+    snapshot_repo = repo or SignalSnapshotRepository()
+    return build_deltas(snapshot_repo.load_for_date(snapshot_date), snapshot_repo)

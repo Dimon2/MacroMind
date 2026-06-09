@@ -256,7 +256,7 @@ Compute signals from persisted data (read-only):
 .\.venv\Scripts\python.exe main.py --signals
 ```
 
-Returns seven rule-based signals: `risk_regime`, `rates_curve_proxy`, `macro_implied_inflation_prob`, `liquidity_regime`, `inflation_regime`, `growth_regime`, and composite `market_state` (four regime labels joined when all dimensions computed).
+Returns eight persisted signals: five regime dimensions (`risk_regime`, `liquidity_regime` with net liquidity + M2 MoM/YoY, `inflation_regime`, `growth_regime` with embedded curve context, `credit_regime`), composite `market_state` (five labels), plus overlays `inflation_pm_overlay` and `fed_rate_context`.
 
 Save daily signal snapshots and day-over-day deltas (run after ingest):
 
@@ -309,7 +309,7 @@ Endpoints:
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/health` | DB liveness; optional `?freshness=true` adds `crawl_runs` summary |
-| GET | `/signals/latest` | Latest day from `signal_snapshots` + deltas |
+| GET | `/desk/latest` | Five-card desk view + overlays + deltas |
 | GET | `/macro/{series_id}?limit=N&source=fred` | Last N observations (`source=yfinance` for market proxies) |
 
 Examples:
@@ -317,7 +317,7 @@ Examples:
 ```powershell
 curl http://127.0.0.1:8000/health
 curl "http://127.0.0.1:8000/health?freshness=true"
-curl http://127.0.0.1:8000/signals/latest
+curl http://127.0.0.1:8000/desk/latest
 curl "http://127.0.0.1:8000/macro/DGS10?limit=90"
 curl "http://127.0.0.1:8000/macro/VIX?source=yfinance&limit=30"
 ```

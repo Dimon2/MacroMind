@@ -38,24 +38,49 @@ def _row(
 def _full_context() -> BriefContext:
     snapshots = {
         "risk_regime": _row("risk_regime", value=1.0, label="risk_on"),
-        "liquidity_regime": _row("liquidity_regime", value=0.0, label="easy"),
+        "liquidity_regime": _row(
+            "liquidity_regime",
+            value=2.0,
+            label="easy",
+            inputs={
+                "net_liquidity": 7_000_000.0,
+                "net_liquidity_change_wow_pct": 0.3,
+                "net_liquidity_date": "2026-06-05",
+                "M2SL_change_mom_pct": 0.42,
+                "M2SL_yoy_pct": 1.8,
+                "M2SL_yoy_status": "computed",
+            },
+        ),
         "inflation_regime": _row("inflation_regime", value=3.0, label="stable"),
-        "growth_regime": _row("growth_regime", value=2.0, label="expanding"),
+        "growth_regime": _row(
+            "growth_regime",
+            value=2.0,
+            label="expanding",
+            inputs={"curve_spread": 0.25, "curve_state": "normal", "curve_source": "T10Y2Y"},
+        ),
+        "credit_regime": _row("credit_regime", value=4.0, label="normal"),
         "market_state": _row(
             "market_state",
-            label="risk_on_easy_stable_expanding",
-            metadata={"label": "risk_on_easy_stable_expanding"},
+            label="risk_on_easy_stable_expanding_normal",
+            metadata={"label": "risk_on_easy_stable_expanding_normal"},
         ),
-        "rates_curve_proxy": _row(
-            "rates_curve_proxy",
-            value=0.25,
-            label="normal",
-            metadata={"curve_state": "normal"},
+        "inflation_pm_overlay": _row(
+            "inflation_pm_overlay",
+            value=None,
+            inputs={
+                "markets": [
+                    {"outcome_label": "Above 3%", "yes_probability": 0.41},
+                    {"outcome_label": "Above 4%", "yes_probability": 0.12},
+                ]
+            },
         ),
-        "macro_implied_inflation_prob": _row(
-            "macro_implied_inflation_prob",
-            value=0.58,
-            inputs={"markets_count": 2},
+        "fed_rate_context": _row(
+            "fed_rate_context",
+            value=None,
+            inputs={
+                "effective_rate": 4.25,
+                "kalshi_markets": [{"outcome_label": "Cut 25bp by Sep", "yes_probability": 0.68}],
+            },
         ),
     }
     deltas = [
@@ -71,14 +96,14 @@ def _full_context() -> BriefContext:
             comparable=True,
         ),
         SignalDelta(
-            signal_name="macro_implied_inflation_prob",
+            signal_name="credit_regime",
             status="computed",
-            value=0.58,
-            label=None,
-            prev_value=0.54,
-            prev_label=None,
-            value_delta=0.04,
-            label_changed=False,
+            value=4.0,
+            label="normal",
+            prev_value=3.8,
+            prev_label="relaxed",
+            value_delta=0.2,
+            label_changed=True,
             comparable=True,
         ),
     ]
@@ -128,12 +153,15 @@ def test_render_brief_full_snapshot() -> None:
     assert "**Signals as of:** 2026-06-05T14:00:00+00:00" in text
     assert "**Previous snapshot:** 2026-06-04" in text
     assert "| fred | 2026-06-05T12:00:00+00:00 | 2.0 | ok |" in text
-    assert "**Composite:** risk_on_easy_stable_expanding" in text
-    assert "**Risk:** risk_on · **Liquidity:** easy · **Inflation:** stable · **Growth:** expanding" in text
-    assert "1. risk_regime: neutral → risk_on; 0 → 1 (Δ +1)" in text
-    assert "2. macro_implied_inflation_prob: 0.54 → 0.58 (Δ +0.04)" in text
-    assert "**Curve (rates_curve_proxy):** normal (spread 0.25)" in text
-    assert "**PM inflation prob:** 58.0% (2 markets)" in text
+    assert "**Composite:** risk_on_easy_stable_expanding_normal" in text
+    assert "**Credit:** normal" in text
+    assert "**Net liquidity:**" in text
+    assert "**M2 MoM:**" in text
+    assert "**M2 YoY:**" in text
+    assert "1. risk_regime: neutral → risk_on" in text
+    assert "**Curve (growth):** normal (spread 0.25)" in text
+    assert "**PM inflation:** Above 3%: 41.0%" in text
+    assert "**Fed compare:** effective 4.25%" in text
 
 
 def test_render_brief_partial_dimensions() -> None:
@@ -156,18 +184,23 @@ def test_render_brief_partial_dimensions() -> None:
     )
     text = render_brief(ctx)
     assert "**Composite:** — (missing_dimension_labels)" in text
-    assert "**Risk:** risk_on · **Liquidity:** — · **Inflation:** — · **Growth:** —" in text
+    assert "**Credit:** —" in text
 
 
 def test_render_brief_skipped_overlays() -> None:
     snapshots = {
-        "rates_curve_proxy": _row(
-            "rates_curve_proxy",
+        "growth_regime": _row(
+            "growth_regime",
+            status="skipped",
+            reason="insufficient_history",
+        ),
+        "inflation_pm_overlay": _row(
+            "inflation_pm_overlay",
             status="skipped",
             reason="missing_required_inputs",
         ),
-        "macro_implied_inflation_prob": _row(
-            "macro_implied_inflation_prob",
+        "fed_rate_context": _row(
+            "fed_rate_context",
             status="skipped",
             reason="missing_required_inputs",
         ),
@@ -181,8 +214,9 @@ def test_render_brief_skipped_overlays() -> None:
         crawl_status={"crawlers": {}, "missing": []},
     )
     text = render_brief(ctx)
-    assert "**Curve (rates_curve_proxy):** — (missing_required_inputs)" in text
-    assert "**PM inflation prob:** — (missing_required_inputs)" in text
+    assert "**Curve (growth):** — (insufficient_history)" in text
+    assert "**PM inflation:** — (missing_required_inputs)" in text
+    assert "**Fed compare:** — (missing_required_inputs)" in text
 
 
 def test_render_brief_no_material_changes() -> None:

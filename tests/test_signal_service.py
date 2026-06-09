@@ -37,21 +37,24 @@ def test_signal_service_returns_coverage_and_signals() -> None:
             value_kind="probability",
             value=0.55,
             unit="probability",
-            metadata={"macro_topic": "inflation"},
+            metadata={"macro_topic": "inflation", "outcome_label": "Above 3%"},
         ),
     ]
     result = service.compute(observations)
-    assert result["coverage"]["total"] == 7
+    assert result["coverage"]["total"] == 8
     assert result["coverage"]["computed"] >= 2
-    assert len(result["signals"]) == 7
+    assert len(result["signals"]) == 8
     names = {item["name"] for item in result["signals"]}
     assert "liquidity_regime" in names
-    assert "inflation_regime" in names
-    assert "growth_regime" in names
+    assert "credit_regime" in names
+    assert "inflation_pm_overlay" in names
+    assert "fed_rate_context" in names
     assert "market_state" in names
+    assert "rates_curve_proxy" not in names
+    assert "macro_implied_inflation_prob" not in names
 
 
 def test_signal_service_handles_degraded_inputs() -> None:
     service = SignalService()
     result = service.compute([])
-    assert result["coverage"] == {"computed": 0, "skipped": 7, "total": 7}
+    assert result["coverage"] == {"computed": 0, "skipped": 8, "total": 8}

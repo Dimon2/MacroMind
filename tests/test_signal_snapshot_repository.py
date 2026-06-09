@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from datetime import date, datetime, timezone
 
-from macromind.db.signal_snapshot import SignalSnapshotRepository, extract_label
+from macromind.db.signal_snapshot import SignalSnapshotRepository, extract_label, rows_from_results
 from macromind.signals.models import SignalResult
 
 _NOW = datetime(2026, 6, 2, 12, 0, tzinfo=timezone.utc)
@@ -32,6 +32,23 @@ class _RecordingConnection:
         return self.cursor
 
 
+def test_rows_from_results() -> None:
+    results = [
+        SignalResult(
+            name="risk_regime",
+            status="computed",
+            value=1.0,
+            metadata={"label": "risk_on"},
+            as_of=_NOW,
+        )
+    ]
+    rows = rows_from_results(_DAY, results)
+    assert len(rows) == 1
+    assert rows[0].signal_name == "risk_regime"
+    assert rows[0].label == "risk_on"
+    assert rows[0].snapshot_date == _DAY
+
+
 def test_extract_label_risk_regime() -> None:
     result = SignalResult(
         name="risk_regime",
@@ -54,11 +71,11 @@ def test_extract_label_market_state() -> None:
     assert extract_label(result) == "risk_on_tight_rising_expanding"
 
 
-def test_extract_label_curve_state() -> None:
+def test_extract_label_curve_state_fallback() -> None:
     result = SignalResult(
-        name="rates_curve_proxy",
+        name="growth_regime",
         status="computed",
-        value=-0.5,
+        value=1.0,
         metadata={"curve_state": "inverted"},
         as_of=_NOW,
     )
@@ -106,26 +123,32 @@ def test_load_previous_date(monkeypatch) -> None:
     assert result == date(2026, 6, 1)
 
 
-def test_load_latest_date(monkeypatch) -> None:
+def test_load_latest_snapshots(monkeypatch) -> None:
     conn = _RecordingConnection()
-    conn.cursor._fetchone = (_DAY,)
+    conn.cursor._fetch_rows = [
+        (_DAY, "risk_regime", "computed", 1.0, "risk_on", None, {}, {}, _NOW),
+    ]
 
     @contextmanager
     def fake_scope():
         yield conn
 
     monkeypatch.setattr("macromind.db.signal_snapshot.connection_scope", fake_scope)
-    result = SignalSnapshotRepository().load_latest_date()
-    assert result == _DAY
+    rows = SignalSnapshotRepository().load_latest_snapshots()
+    assert len(rows) == 1
+    assert rows[0].signal_name == "risk_regime"
+    assert rows[0].snapshot_date == _DAY
+    query, _ = conn.cursor.executed[0]
+    assert "MAX(snapshot_date)" in query
 
 
-def test_load_latest_date_empty(monkeypatch) -> None:
+def test_load_latest_snapshots_empty(monkeypatch) -> None:
     conn = _RecordingConnection()
-    conn.cursor._fetchone = (None,)
+    conn.cursor._fetch_rows = []
 
     @contextmanager
     def fake_scope():
         yield conn
 
     monkeypatch.setattr("macromind.db.signal_snapshot.connection_scope", fake_scope)
-    assert SignalSnapshotRepository().load_latest_date() is None
+    assert SignalSnapshotRepository().load_latest_snapshots() == []

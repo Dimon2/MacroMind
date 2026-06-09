@@ -7,7 +7,7 @@ from typing import Any
 from macromind.db.signal_snapshot import SignalSnapshotRepository, SignalSnapshotRow
 from macromind.ingestion.crawl_status import build_crawl_status
 from macromind.signals.calculators import MARKET_STATE_DIMENSIONS
-from macromind.signals.delta import SignalDelta, build_deltas_for_date
+from macromind.signals.delta import SignalDelta, build_deltas
 
 PERSIST_CRAWLERS = ("fred", "kalshi", "market")
 
@@ -44,7 +44,7 @@ def load_brief_context(
     if not rows:
         return None
 
-    prev_date, deltas = build_deltas_for_date(snapshot_date, repo)
+    prev_date, deltas = build_deltas(rows, repo)
     as_of = max(row.as_of for row in rows)
     crawl_status = build_crawl_status(crawler_names)
 

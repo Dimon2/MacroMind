@@ -10,6 +10,7 @@ REGIME_SERIES_IDS: tuple[str, ...] = (
     "WALCL",
     "RRPONTSYD",
     "WTREGEN",
+    "M2SL",
 )
 
 REGIME_HISTORY_LAST_N = 15

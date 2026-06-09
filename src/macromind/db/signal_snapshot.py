@@ -35,6 +35,23 @@ def extract_label(result: SignalResult) -> str | None:
     return None
 
 
+def rows_from_results(snapshot_date: date, results: list[SignalResult]) -> list[SignalSnapshotRow]:
+    return [
+        SignalSnapshotRow(
+            snapshot_date=snapshot_date,
+            signal_name=result.name,
+            status=result.status,
+            value=result.value,
+            label=extract_label(result),
+            reason=result.reason,
+            inputs=dict(result.inputs or {}),
+            metadata=dict(result.metadata or {}),
+            as_of=result.as_of,
+        )
+        for result in results
+    ]
+
+
 class SignalSnapshotRepository:
     def upsert_for_date(self, snapshot_date: date, results: list[SignalResult]) -> int:
         if not results:
@@ -88,17 +105,18 @@ class SignalSnapshotRepository:
             ).fetchall()
         return [self._row_to_snapshot(row) for row in rows]
 
-    def load_latest_date(self) -> date | None:
+    def load_latest_snapshots(self) -> list[SignalSnapshotRow]:
         with connection_scope() as conn:
-            row = conn.execute(
+            rows = conn.execute(
                 """
-                SELECT MAX(snapshot_date)
+                SELECT snapshot_date, signal_name, status, value, label, reason,
+                       inputs, metadata, as_of
                 FROM signal_snapshots
+                WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM signal_snapshots)
+                ORDER BY signal_name
                 """
-            ).fetchone()
-        if row is None or row[0] is None:
-            return None
-        return row[0]
+            ).fetchall()
+        return [self._row_to_snapshot(row) for row in rows]
 
     def load_previous_date(self, before: date) -> date | None:
         with connection_scope() as conn:
