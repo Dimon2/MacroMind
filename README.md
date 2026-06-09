@@ -87,13 +87,15 @@ Based on project map in `macromind_data_sources_en.pdf` (legacy filename `ai_mar
 
 ### Frontend dev
 
+Start the API first (see [Read-only HTTP API](#read-only-http-api)), then:
+
 ```powershell
 cd UI
 npm install
 npm run dev
 ```
 
-React SPA with mock data in `UI/src/hooks/` — API wiring comes later.
+Vite proxies `/api` → `http://127.0.0.1:8000`. Hooks call `GET /desk/latest` and `GET /macro/{series_id}` via [`UI/src/lib/api.ts`](UI/src/lib/api.ts).
 
 ### Current Python layout
 

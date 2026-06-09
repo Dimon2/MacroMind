@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 
 from macromind.api.read.desk import NoSnapshotsError, load_latest_desk
 from macromind.api.read.health import build_health_response
@@ -18,6 +19,17 @@ def create_app() -> FastAPI:
         title="MacroMind API",
         description="Read-only API over persisted macro data and signal snapshots.",
         version="0.1.0",
+    )
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+        ],
+        allow_credentials=True,
+        allow_methods=["GET"],
+        allow_headers=["*"],
     )
 
     @app.get("/health")
