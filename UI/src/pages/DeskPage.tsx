@@ -57,9 +57,18 @@ export function DeskPage() {
             ))}
           </RegimeCard>
 
-          <RegimeCard title="Liquidity" regime={cards.liquidity.regime}>
+          <RegimeCard title="Liquidity (level)" regime={cards.liquidity.level}>
+            <p className="text-xs text-zinc-500">
+              Trend: <span className="font-mono text-zinc-300">{cards.liquidity.trend.label ?? '—'}</span>
+            </p>
+            {cards.liquidity.matrix.interpretation && (
+              <p className="text-xs text-zinc-400">{cards.liquidity.matrix.interpretation}</p>
+            )}
             <p>Net liq: {cards.liquidity.net_liquidity.level_millions?.toLocaleString()}M</p>
             <p>WoW: {cards.liquidity.net_liquidity.change_wow_pct}%</p>
+            {cards.liquidity.level_inputs.vs_52w_pct != null && (
+              <p>vs 52w avg: {cards.liquidity.level_inputs.vs_52w_pct}%</p>
+            )}
             <p>M2 YoY: {cards.liquidity.m2.yoy_pct}%</p>
             <MacroLinks keys={cards.liquidity.series_keys} />
           </RegimeCard>

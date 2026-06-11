@@ -27,11 +27,13 @@ BAML_HY_AVAILABLE_FROM = date(2023, 6, 12)
 
 REGIME_SIGNAL_NAMES: tuple[str, ...] = (
     "risk_regime",
-    "liquidity_regime",
+    "liquidity_trend_regime",
+    "liquidity_level_regime",
     "inflation_regime",
     "growth_regime",
     "credit_regime",
     "market_state",
+    "liquidity_context",
 )
 
 
@@ -136,6 +138,9 @@ def _build_data_notes(query_date: date, results: list[SignalResult]) -> list[str
         )
     notes.append(
         "growth_regime uses latest published UNRATE (monthly); may lag market stress on daily dates"
+    )
+    notes.append(
+        "liquidity_level_regime needs ~52 weeks of aligned WALCL/WTREGEN/RRP history for full scoring"
     )
     for result in results:
         if result.status == "skipped" and result.reason:

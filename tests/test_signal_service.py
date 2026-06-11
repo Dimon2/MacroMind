@@ -41,11 +41,13 @@ def test_signal_service_returns_coverage_and_signals() -> None:
         ),
     ]
     result = service.compute(observations)
-    assert result["coverage"]["total"] == 8
+    assert result["coverage"]["total"] == 10
     assert result["coverage"]["computed"] >= 2
-    assert len(result["signals"]) == 8
+    assert len(result["signals"]) == 10
     names = {item["name"] for item in result["signals"]}
-    assert "liquidity_regime" in names
+    assert "liquidity_trend_regime" in names
+    assert "liquidity_level_regime" in names
+    assert "liquidity_context" in names
     assert "credit_regime" in names
     assert "inflation_pm_overlay" in names
     assert "fed_rate_context" in names
@@ -57,4 +59,4 @@ def test_signal_service_returns_coverage_and_signals() -> None:
 def test_signal_service_handles_degraded_inputs() -> None:
     service = SignalService()
     result = service.compute([])
-    assert result["coverage"] == {"computed": 0, "skipped": 8, "total": 8}
+    assert result["coverage"] == {"computed": 0, "skipped": 10, "total": 10}

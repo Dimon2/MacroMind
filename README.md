@@ -268,7 +268,7 @@ Compute signals from persisted data (read-only):
 .\.venv\Scripts\python.exe main.py --signals
 ```
 
-Returns eight persisted signals: five regime dimensions (`risk_regime`, `liquidity_regime` with net liquidity + M2 MoM/YoY, `inflation_regime`, `growth_regime` with embedded curve context, `credit_regime`), composite `market_state` (five labels), plus overlays `inflation_pm_overlay` and `fed_rate_context`.
+Returns ten persisted signals: six regime dimensions (`risk_regime`, `liquidity_trend_regime` WoW impulse, `liquidity_level_regime` structural backdrop, `inflation_regime`, `growth_regime` with embedded curve context, `credit_regime`), composite `market_state` (five labels; liquidity slot uses level), plus overlays `liquidity_context`, `inflation_pm_overlay`, and `fed_rate_context`.
 
 Save daily signal snapshots and day-over-day deltas (run after ingest):
 

@@ -79,43 +79,96 @@ def _render_market_state(ctx: BriefContext) -> str:
         composite = "—"
 
     risk = dimensions.get("risk_regime") or "—"
-    liquidity = dimensions.get("liquidity_regime") or "—"
+    liquidity_level = dimensions.get("liquidity_level_regime") or "—"
+    liquidity_trend_row = ctx.snapshot("liquidity_trend_regime")
+    liquidity_trend = (
+        liquidity_trend_row.label
+        if liquidity_trend_row and liquidity_trend_row.status == "computed"
+        else "—"
+    )
     inflation = dimensions.get("inflation_regime") or "—"
     growth = dimensions.get("growth_regime") or "—"
     credit = dimensions.get("credit_regime") or "—"
 
     return (
         f"**Composite:** {composite}  \n"
-        f"**Risk:** {risk} · **Liquidity:** {liquidity} · "
+        f"**Risk:** {risk} · **Liquidity (level):** {liquidity_level} · "
+        f"**Trend:** {liquidity_trend} · "
         f"**Inflation:** {inflation} · **Growth:** {growth} · **Credit:** {credit}"
     )
 
 
 def _render_liquidity_detail(ctx: BriefContext) -> str:
-    row = ctx.snapshot("liquidity_regime")
-    if row is None or row.status != "computed":
-        reason = row.reason if row is not None else "missing"
-        return f"— ({reason})"
+    level_row = ctx.snapshot("liquidity_level_regime")
+    trend_row = ctx.snapshot("liquidity_trend_regime")
+    context_row = ctx.snapshot("liquidity_context")
 
-    inputs = row.inputs or {}
-    net = inputs.get("net_liquidity")
-    net_chg = inputs.get("net_liquidity_change_wow_pct")
-    net_date = inputs.get("net_liquidity_date", "—")
-    mom = inputs.get("M2SL_change_mom_pct")
-    yoy = inputs.get("M2SL_yoy_pct")
-    yoy_status = inputs.get("M2SL_yoy_status", "—")
+    if level_row is None and trend_row is None:
+        return "— (missing)"
 
-    lines = [
-        f"**Net liquidity:** {_format_num(net) if net is not None else '—'} M USD "
-        f"(WoW {_format_delta_pct(net_chg)}, as of {net_date})",
-    ]
+    lines: list[str] = []
+
+    if level_row is not None and level_row.status == "computed":
+        level_inputs = level_row.inputs or {}
+        vs_52w = level_inputs.get("net_liquidity_vs_52w_pct")
+        walcl_26w = level_inputs.get("WALCL_change_26w_pct")
+        drain_26w = level_inputs.get("drain_change_26w_pct")
+        lines.append(
+            f"**Level:** {level_row.label} "
+            f"(vs 52w avg {_format_delta_pct(_to_float(vs_52w))}, "
+            f"WALCL 26w {_format_delta_pct(_to_float(walcl_26w))}, "
+            f"drain 26w {_format_delta_pct(_to_float(drain_26w))})"
+        )
+    elif level_row is not None:
+        lines.append(f"**Level:** — ({level_row.reason or 'skipped'})")
+
+    if trend_row is not None and trend_row.status == "computed":
+        trend_inputs = trend_row.inputs or {}
+        net = trend_inputs.get("net_liquidity")
+        net_chg = trend_inputs.get("net_liquidity_change_wow_pct")
+        net_date = trend_inputs.get("net_liquidity_date", "—")
+        lines.append(
+            f"**Trend:** {trend_row.label} — net liq "
+            f"{_format_num(net) if net is not None else '—'} M USD "
+            f"(WoW {_format_delta_pct(_to_float(net_chg))}, as of {net_date})"
+        )
+    elif trend_row is not None:
+        lines.append(f"**Trend:** — ({trend_row.reason or 'skipped'})")
+
+    if context_row is not None and context_row.status == "computed":
+        interpretation = (context_row.inputs or {}).get("interpretation")
+        if interpretation:
+            lines.append(f"**Context:** {interpretation}")
+
+    mom = None
+    yoy = None
+    yoy_status = "—"
+    if trend_row and trend_row.inputs:
+        mom = trend_row.inputs.get("M2SL_change_mom_pct")
+        yoy = trend_row.inputs.get("M2SL_yoy_pct")
+        yoy_status = trend_row.inputs.get("M2SL_yoy_status", "—")
+    elif level_row and level_row.inputs:
+        mom = level_row.inputs.get("M2SL_change_mom_pct")
+        yoy = level_row.inputs.get("M2SL_yoy_pct")
+        yoy_status = level_row.inputs.get("M2SL_yoy_status", "—")
+
     if mom is not None:
-        lines.append(f"**M2 MoM:** {_format_delta_pct(mom)}")
+        lines.append(f"**M2 MoM:** {_format_delta_pct(_to_float(mom))}")
     if yoy is not None:
-        lines.append(f"**M2 YoY:** {_format_delta_pct(yoy)}")
+        lines.append(f"**M2 YoY:** {_format_delta_pct(_to_float(yoy))}")
     elif yoy_status != "computed":
         lines.append(f"**M2 YoY:** — ({yoy_status})")
-    return "  \n".join(lines)
+
+    return "  \n".join(lines) if lines else "— (missing)"
+
+
+def _to_float(value: object) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _render_top_deltas(ctx: BriefContext) -> str:

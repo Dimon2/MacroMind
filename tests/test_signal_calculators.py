@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from macromind.market.normalized_observation import NormalizedObservation
 from macromind.signals.calculators import (
@@ -8,11 +8,13 @@ from macromind.signals.calculators import (
     compute_credit_regime,
     compute_growth_regime,
     compute_inflation_regime,
-    compute_liquidity_regime,
+    compute_liquidity_level_regime,
+    compute_liquidity_trend_regime,
     compute_market_state,
     compute_risk_regime,
 )
 from macromind.signals.models import SignalResult
+from macromind.signals.overlays import build_liquidity_context
 
 _FETCHED = datetime(2026, 6, 2, 10, 0, tzinfo=timezone.utc)
 
@@ -72,6 +74,30 @@ def _net_liquidity_obs(
         _fred_obs("WTREGEN", obs_date, tga),
         _fred_obs("RRPONTSYD", obs_date, rrp_billions),
     ]
+
+
+def _weekly_net_history(
+    end_date: date,
+    *,
+    weeks: int,
+    net_for_week: callable[[int], float],
+    tga: float = 500_000.0,
+    rrp_billions: float = 500.0,
+) -> list[NormalizedObservation]:
+    observations: list[NormalizedObservation] = []
+    for week in range(weeks):
+        obs_date = end_date - timedelta(days=7 * week)
+        net = net_for_week(week)
+        walcl = net + tga + rrp_billions * 1000.0
+        observations.extend(
+            _net_liquidity_obs(
+                obs_date,
+                walcl=walcl,
+                tga=tga,
+                rrp_billions=rrp_billions,
+            )
+        )
+    return observations
 
 
 def test_compute_risk_regime_computed() -> None:
@@ -138,50 +164,112 @@ def test_compute_risk_regime_elevated_vix_tiebreaker() -> None:
     assert result.metadata["label"] == "risk_off"
 
 
-def test_compute_liquidity_regime_net_liquidity_easy() -> None:
+def test_compute_liquidity_trend_regime_net_liquidity_easy() -> None:
     observations = [
         *_net_liquidity_obs(date(2026, 6, 4), walcl=8_100_000.0, tga=500_000.0, rrp_billions=500.0),
         *_net_liquidity_obs(date(2026, 5, 28), walcl=8_000_000.0, tga=500_000.0, rrp_billions=500.0),
     ]
-    result = compute_liquidity_regime(observations)
+    result = compute_liquidity_trend_regime(observations)
     assert result.status == "computed"
     assert result.metadata["label"] == "easy"
     assert result.inputs["net_liquidity"] == 8_100_000.0 - 500_000.0 - 500_000.0
 
 
-def test_compute_liquidity_regime_rrp_unit_conversion() -> None:
+def test_compute_liquidity_trend_regime_rrp_unit_conversion() -> None:
     observations = [
         *_net_liquidity_obs(date(2026, 6, 4), walcl=1_000_000.0, tga=0.0, rrp_billions=1.0),
     ]
-    result = compute_liquidity_regime(observations)
+    result = compute_liquidity_trend_regime(observations)
     assert result.status == "skipped"
     assert result.inputs["aligned_points"] == 1
 
 
-def test_compute_liquidity_regime_m2_mom_and_yoy() -> None:
+def test_compute_liquidity_trend_regime_m2_mom_and_yoy() -> None:
     m2_values = [23000.0] + [22800.0] * 11 + [22000.0]
     observations = [
         *_net_liquidity_obs(date(2026, 6, 4), walcl=8_000_000.0, tga=500_000.0, rrp_billions=500.0),
         *_net_liquidity_obs(date(2026, 5, 28), walcl=7_950_000.0, tga=500_000.0, rrp_billions=500.0),
         *_m2_history_desc(m2_values),
     ]
-    result = compute_liquidity_regime(observations)
+    result = compute_liquidity_trend_regime(observations)
     assert result.status == "computed"
     assert result.inputs["M2SL_change_mom_pct"] is not None
     assert result.inputs["M2SL_yoy_status"] == "computed"
     assert result.inputs["M2SL_yoy_pct"] is not None
 
 
-def test_compute_liquidity_regime_m2_yoy_insufficient_history() -> None:
+def test_compute_liquidity_trend_regime_m2_yoy_insufficient_history() -> None:
     observations = [
         *_net_liquidity_obs(date(2026, 6, 4), walcl=8_000_000.0, tga=500_000.0, rrp_billions=500.0),
         *_net_liquidity_obs(date(2026, 5, 28), walcl=7_950_000.0, tga=500_000.0, rrp_billions=500.0),
         _fred_obs("M2SL", date(2026, 4, 1), 22800.0),
         _fred_obs("M2SL", date(2026, 3, 1), 22700.0),
     ]
-    result = compute_liquidity_regime(observations)
+    result = compute_liquidity_trend_regime(observations)
     assert result.status == "computed"
     assert result.inputs["M2SL_yoy_status"] == "insufficient_history"
+
+
+def test_compute_liquidity_level_regime_tight() -> None:
+    observations = _weekly_net_history(
+        date(2026, 6, 4),
+        weeks=53,
+        net_for_week=lambda week: 5_900_000.0 if week == 0 else 6_200_000.0,
+    )
+    m2_values = [21000.0] + [20900.0] * 11 + [20700.0]
+    observations.extend(_m2_history_desc(m2_values))
+
+    result = compute_liquidity_level_regime(observations)
+    assert result.status == "computed"
+    assert result.metadata["label"] == "tight"
+    assert result.inputs["components_scored"] >= 3
+
+
+def test_compute_liquidity_level_regime_skips_without_components() -> None:
+    result = compute_liquidity_level_regime([])
+    assert result.status == "skipped"
+    assert result.reason == "insufficient_history"
+
+
+def test_liquidity_oct_2022_level_tight_trend_neutral() -> None:
+    latest = date(2022, 10, 12)
+    prior_net = 5_900_000.0
+    latest_net = prior_net * 1.0016
+
+    def net_for_week(week: int) -> float:
+        if week == 0:
+            return latest_net
+        if week == 1:
+            return prior_net
+        return 6_200_000.0
+
+    observations = _weekly_net_history(
+        latest,
+        weeks=53,
+        net_for_week=net_for_week,
+    )
+    m2_values = [21000.0] + [20900.0] * 11 + [20700.0]
+    observations.extend(_m2_history_desc(m2_values))
+
+    level = compute_liquidity_level_regime(observations)
+    trend = compute_liquidity_trend_regime(observations)
+    context = build_liquidity_context(level, trend)
+
+    assert level.status == "computed"
+    assert level.metadata["label"] == "tight"
+    assert trend.status == "computed"
+    assert trend.metadata["label"] == "neutral"
+    assert abs(float(trend.inputs["net_liquidity_change_wow_pct"]) - 0.16) < 0.05
+    assert context.status == "computed"
+    assert context.inputs["interpretation"] == "Tight backdrop, flat weekly impulse"
+
+
+def test_build_liquidity_context_matrix() -> None:
+    level = _dimension_result("liquidity_level_regime", "easy")
+    trend = _dimension_result("liquidity_trend_regime", "easy")
+    context = build_liquidity_context(level, trend)
+    assert context.metadata["label"] == "easy_easy"
+    assert context.inputs["interpretation"] == "Strong risk-on backdrop"
 
 
 def test_compute_credit_regime_relaxed() -> None:
@@ -305,7 +393,7 @@ def test_compute_market_state_five_part_composite() -> None:
     result = compute_market_state(
         {
             "risk_regime": _dimension_result("risk_regime", "risk_on"),
-            "liquidity_regime": _dimension_result("liquidity_regime", "tight"),
+            "liquidity_level_regime": _dimension_result("liquidity_level_regime", "tight"),
             "inflation_regime": _dimension_result("inflation_regime", "rising"),
             "growth_regime": _dimension_result("growth_regime", "expanding"),
             "credit_regime": _dimension_result("credit_regime", "normal"),
@@ -319,7 +407,7 @@ def test_compute_market_state_skips_when_credit_missing() -> None:
     result = compute_market_state(
         {
             "risk_regime": _dimension_result("risk_regime", "risk_on"),
-            "liquidity_regime": _dimension_result("liquidity_regime", "easy"),
+            "liquidity_level_regime": _dimension_result("liquidity_level_regime", "easy"),
             "inflation_regime": _dimension_result("inflation_regime", "stable"),
             "growth_regime": _dimension_result("growth_regime", "neutral"),
             "credit_regime": SignalResult(

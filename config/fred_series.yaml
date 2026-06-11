@@ -29,6 +29,8 @@ series:
     category: liquidity
     unit: millions_usd
     min_points: 2
+    bootstrap_limit: 60
+    steady_limit: 8
   - series_id: M2SL
     category: liquidity
     unit: billions_usd
@@ -40,10 +42,14 @@ series:
     category: liquidity
     unit: millions_usd
     min_points: 2
+    bootstrap_limit: 60
+    steady_limit: 8
   - series_id: RRPONTSYD
     category: liquidity
     unit: billions_usd
     min_points: 2
+    bootstrap_limit: 60
+    steady_limit: 8
   - series_id: BAMLH0A0HYM2
     category: credit
     unit: percent

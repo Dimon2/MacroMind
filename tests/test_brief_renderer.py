@@ -38,8 +38,21 @@ def _row(
 def _full_context() -> BriefContext:
     snapshots = {
         "risk_regime": _row("risk_regime", value=1.0, label="risk_on"),
-        "liquidity_regime": _row(
-            "liquidity_regime",
+        "liquidity_level_regime": _row(
+            "liquidity_level_regime",
+            value=2.0,
+            label="easy",
+            inputs={
+                "net_liquidity_vs_52w_pct": 2.5,
+                "WALCL_change_26w_pct": 1.0,
+                "drain_change_26w_pct": -3.0,
+                "M2SL_change_mom_pct": 0.42,
+                "M2SL_yoy_pct": 1.8,
+                "M2SL_yoy_status": "computed",
+            },
+        ),
+        "liquidity_trend_regime": _row(
+            "liquidity_trend_regime",
             value=2.0,
             label="easy",
             inputs={
@@ -50,6 +63,11 @@ def _full_context() -> BriefContext:
                 "M2SL_yoy_pct": 1.8,
                 "M2SL_yoy_status": "computed",
             },
+        ),
+        "liquidity_context": _row(
+            "liquidity_context",
+            label="easy_easy",
+            inputs={"level": "easy", "trend": "easy", "interpretation": "Strong risk-on backdrop"},
         ),
         "inflation_regime": _row("inflation_regime", value=3.0, label="stable"),
         "growth_regime": _row(
@@ -155,7 +173,8 @@ def test_render_brief_full_snapshot() -> None:
     assert "| fred | 2026-06-05T12:00:00+00:00 | 2.0 | ok |" in text
     assert "**Composite:** risk_on_easy_stable_expanding_normal" in text
     assert "**Credit:** normal" in text
-    assert "**Net liquidity:**" in text
+    assert "**Level:**" in text
+    assert "**Trend:**" in text
     assert "**M2 MoM:**" in text
     assert "**M2 YoY:**" in text
     assert "1. risk_regime: neutral → risk_on" in text

@@ -57,6 +57,6 @@ def test_macro_datapoints_for_signals_loads_latest_and_regime_history() -> None:
     call = macro.load_observations.call_args
     assert call[0][0] == "fred"
     assert "CPIAUCSL" in call[0][1]
-    assert call[1]["last_n"] == 15
+    assert call[1]["last_n"] == 60
     assert len(result) == 3
     assert {dp.indicator for dp in result} == {"DGS10", "CPIAUCSL"}

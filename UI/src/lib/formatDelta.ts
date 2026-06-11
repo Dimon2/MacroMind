@@ -2,7 +2,8 @@ import type { SignalDelta } from '../types/desk'
 
 const SIGNAL_NAMES: Record<string, string> = {
   risk_regime: 'Risk',
-  liquidity_regime: 'Liquidity',
+  liquidity_trend_regime: 'Liquidity trend',
+  liquidity_level_regime: 'Liquidity level',
   inflation_regime: 'Inflation',
   growth_regime: 'Growth',
   credit_regime: 'Credit',
@@ -14,7 +15,8 @@ const VALUE_KIND: Record<string, ValueKind> = {
   inflation_regime: 'cpi_yoy',
   credit_regime: 'hy_spread',
   risk_regime: 'score',
-  liquidity_regime: 'score',
+  liquidity_trend_regime: 'score',
+  liquidity_level_regime: 'score',
   growth_regime: 'score',
 }
 
@@ -22,7 +24,8 @@ const METRIC_LABEL: Record<string, string> = {
   inflation_regime: 'CPI YoY',
   credit_regime: 'HY OAS spread',
   risk_regime: 'Regime score',
-  liquidity_regime: 'Regime score',
+  liquidity_trend_regime: 'Regime score',
+  liquidity_level_regime: 'Regime score',
   growth_regime: 'Regime score',
 }
 

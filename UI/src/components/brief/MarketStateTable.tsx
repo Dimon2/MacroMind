@@ -6,11 +6,20 @@ type MarketStateTableProps = {
 
 const ROWS: { key: keyof DeskCards; label: string }[] = [
   { key: 'risk', label: 'Risk' },
-  { key: 'liquidity', label: 'Liquidity' },
+  { key: 'liquidity', label: 'Liquidity (level)' },
   { key: 'inflation', label: 'Inflation' },
   { key: 'growth', label: 'Growth' },
   { key: 'credit', label: 'Credit' },
 ]
+
+function regimeLabel(cards: DeskCards, key: keyof DeskCards): string {
+  if (key === 'liquidity') {
+    const level = cards.liquidity.level.label ?? '—'
+    const trend = cards.liquidity.trend.label
+    return trend ? `${level} · trend ${trend}` : level
+  }
+  return cards[key].regime.label ?? '—'
+}
 
 export function MarketStateTable({ cards }: MarketStateTableProps) {
   return (
@@ -19,7 +28,7 @@ export function MarketStateTable({ cards }: MarketStateTableProps) {
         <div key={key} className="flex items-center justify-between px-4 py-3">
           <span className="text-sm text-zinc-400">{label}</span>
           <span className="font-mono text-sm text-zinc-200">
-            {cards[key].regime.label ?? '—'}
+            {regimeLabel(cards, key)}
           </span>
         </div>
       ))}

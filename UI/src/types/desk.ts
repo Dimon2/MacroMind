@@ -11,13 +11,30 @@ export type RiskCard = {
   series: Record<string, { value: number; change_pct?: number | null }>
 }
 
+export type LiquidityMatrix = {
+  key?: string | null
+  interpretation?: string | null
+}
+
+export type LiquidityLevelInputs = {
+  vs_52w_pct?: number | null
+  walcl_26w_pct?: number | null
+  drain_26w_pct?: number | null
+  components_scored?: number | null
+  components_total?: number | null
+}
+
 export type LiquidityCard = {
   regime: RegimeBlock
+  level: RegimeBlock
+  trend: RegimeBlock
+  matrix: LiquidityMatrix
   net_liquidity: {
     level_millions?: number | null
     change_wow_pct?: number | null
     as_of?: string | null
   }
+  level_inputs: LiquidityLevelInputs
   m2: {
     level_billions?: number | null
     change_mom_pct?: number | null

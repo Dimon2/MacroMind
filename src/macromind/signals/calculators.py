@@ -12,6 +12,18 @@ NET_LIQUIDITY_TIGHT_PCT = -0.25
 LIQUIDITY_DRAIN_PCT = 1.0
 RRP_BILLIONS_TO_MILLIONS = 1000.0
 
+# Liquidity level (structural backdrop)
+NET_LIQ_52W_WEEKS = 52
+NET_LIQ_VS_52W_EASY_PCT = 3.0
+NET_LIQ_VS_52W_TIGHT_PCT = -3.0
+M2_YOY_LEVEL_EASY_PCT = 5.0
+M2_YOY_LEVEL_TIGHT_PCT = 2.5
+WALCL_26W_WEEKS = 26
+WALCL_26W_EASY_PCT = 2.0
+WALCL_26W_TIGHT_PCT = -2.0
+DRAIN_26W_EASY_PCT = -5.0
+DRAIN_26W_TIGHT_PCT = 5.0
+
 # M2 YoY (monthly)
 M2_YOY_LAG_MONTHS = 12
 M2_MIN_POINTS_YOY = 13
@@ -32,7 +44,7 @@ CREDIT_STRESSED_PCT = 5.0
 
 MARKET_STATE_DIMENSIONS: tuple[str, ...] = (
     "risk_regime",
-    "liquidity_regime",
+    "liquidity_level_regime",
     "inflation_regime",
     "growth_regime",
     "credit_regime",
@@ -83,11 +95,11 @@ def compute_risk_regime(observations: list[NormalizedObservation]) -> SignalResu
     )
 
 
-def compute_liquidity_regime(observations: list[NormalizedObservation]) -> SignalResult:
+def compute_liquidity_trend_regime(observations: list[NormalizedObservation]) -> SignalResult:
     net_series = _compute_net_liquidity_series(observations)
     if len(net_series) < 2:
         return _skipped(
-            name="liquidity_regime",
+            name="liquidity_trend_regime",
             reason="insufficient_history",
             inputs={
                 "required": "aligned WALCL, WTREGEN, RRPONTSYD",
@@ -127,14 +139,95 @@ def compute_liquidity_regime(observations: list[NormalizedObservation]) -> Signa
     m2_inputs = _m2_overlay_inputs(observations)
     inputs.update(m2_inputs)
 
-    label = "neutral"
-    if score >= 2:
-        label = "easy"
-    elif score <= -2:
-        label = "tight"
+    label = _liquidity_easy_tight_label(score)
 
     return SignalResult(
-        name="liquidity_regime",
+        name="liquidity_trend_regime",
+        status="computed",
+        value=float(score),
+        inputs=inputs,
+        metadata={"label": label},
+        as_of=as_of,
+    )
+
+
+def compute_liquidity_level_regime(observations: list[NormalizedObservation]) -> SignalResult:
+    score = 0
+    components_scored = 0
+    inputs: dict[str, object] = {}
+
+    net_series = _compute_net_liquidity_series(observations)
+    if len(net_series) >= NET_LIQ_52W_WEEKS:
+        window = net_series[:NET_LIQ_52W_WEEKS]
+        values = [value for _, value in window]
+        avg_52w = _rolling_mean(values)
+        latest_net = values[0]
+        vs_52w = _pct_vs_mean(latest_net, avg_52w)
+        inputs["net_liquidity_vs_52w_pct"] = vs_52w
+        inputs["net_liquidity_52w_avg"] = avg_52w
+        inputs["net_liquidity_vs_52w_status"] = "computed"
+        components_scored += 1
+        if vs_52w is not None:
+            if vs_52w > NET_LIQ_VS_52W_EASY_PCT:
+                score += 1
+            elif vs_52w < NET_LIQ_VS_52W_TIGHT_PCT:
+                score -= 1
+    else:
+        inputs["net_liquidity_vs_52w_status"] = "insufficient"
+        inputs["net_liquidity_vs_52w_pct"] = None
+        inputs["net_liquidity_52w_avg"] = None
+
+    m2_inputs = _m2_overlay_inputs(observations)
+    inputs.update(m2_inputs)
+    m2_yoy = m2_inputs.get("M2SL_yoy_pct")
+    if m2_inputs.get("M2SL_yoy_status") == "computed" and m2_yoy is not None:
+        components_scored += 1
+        if float(m2_yoy) > M2_YOY_LEVEL_EASY_PCT:
+            score += 1
+        elif float(m2_yoy) < M2_YOY_LEVEL_TIGHT_PCT:
+            score -= 1
+
+    walcl_chg = _walcl_change_weeks(observations, weeks=WALCL_26W_WEEKS)
+    if walcl_chg is not None:
+        inputs["WALCL_change_26w_pct"] = walcl_chg
+        inputs["WALCL_change_26w_status"] = "computed"
+        components_scored += 1
+        if walcl_chg > WALCL_26W_EASY_PCT:
+            score += 1
+        elif walcl_chg < WALCL_26W_TIGHT_PCT:
+            score -= 1
+    else:
+        inputs["WALCL_change_26w_pct"] = None
+        inputs["WALCL_change_26w_status"] = "insufficient"
+
+    drain_chg = _drain_change_weeks(observations, weeks=WALCL_26W_WEEKS)
+    if drain_chg is not None:
+        inputs["drain_change_26w_pct"] = drain_chg
+        inputs["drain_change_26w_status"] = "computed"
+        components_scored += 1
+        if drain_chg < DRAIN_26W_EASY_PCT:
+            score += 1
+        elif drain_chg > DRAIN_26W_TIGHT_PCT:
+            score -= 1
+    else:
+        inputs["drain_change_26w_pct"] = None
+        inputs["drain_change_26w_status"] = "insufficient"
+
+    inputs["components_scored"] = components_scored
+    inputs["components_total"] = 4
+
+    if components_scored == 0:
+        return _skipped(
+            name="liquidity_level_regime",
+            reason="insufficient_history",
+            inputs=inputs,
+        )
+
+    as_of = _latest_as_of_for_series(observations, _NET_LIQUIDITY_SERIES + ("M2SL", "WALCL"))
+    label = _liquidity_easy_tight_label(score)
+
+    return SignalResult(
+        name="liquidity_level_regime",
         status="computed",
         value=float(score),
         inputs=inputs,
@@ -380,6 +473,63 @@ def _net_liquidity_components(
             components["RRPONTSYD"] * RRP_BILLIONS_TO_MILLIONS
         )
     return components
+
+
+def _liquidity_easy_tight_label(score: int) -> str:
+    if score >= 2:
+        return "easy"
+    if score <= -2:
+        return "tight"
+    return "neutral"
+
+
+def _rolling_mean(values: list[float]) -> float:
+    return sum(values) / len(values)
+
+
+def _pct_vs_mean(latest: float, mean: float) -> float | None:
+    if mean == 0:
+        return None
+    return (latest - mean) / mean * 100.0
+
+
+def _walcl_change_weeks(
+    observations: list[NormalizedObservation],
+    *,
+    weeks: int,
+) -> float | None:
+    hist = _series_history(observations, "WALCL")
+    if len(hist) <= weeks:
+        return None
+    return _pct_change(hist[0].value, hist[weeks].value)
+
+
+def _drain_change_weeks(
+    observations: list[NormalizedObservation],
+    *,
+    weeks: int,
+) -> float | None:
+    by_series: dict[str, dict[date, float]] = {}
+    for series_key in ("WTREGEN", "RRPONTSYD"):
+        hist = _series_history(observations, series_key)
+        by_series[series_key] = {obs.observation_date: obs.value for obs in hist}
+
+    common_dates = set(by_series["WTREGEN"]) & set(by_series["RRPONTSYD"])
+    if not common_dates:
+        return None
+
+    drain_levels: list[tuple[date, float]] = []
+    for obs_date in common_dates:
+        tga = by_series["WTREGEN"][obs_date]
+        rrp_millions = by_series["RRPONTSYD"][obs_date] * RRP_BILLIONS_TO_MILLIONS
+        drain_levels.append((obs_date, tga + rrp_millions))
+
+    drain_series = sorted(drain_levels, key=lambda item: item[0], reverse=True)
+    if len(drain_series) <= weeks:
+        return None
+    latest_drain = drain_series[0][1]
+    prior_drain = drain_series[weeks][1]
+    return _pct_change(latest_drain, prior_drain)
 
 
 def _m2_overlay_inputs(observations: list[NormalizedObservation]) -> dict[str, object]:

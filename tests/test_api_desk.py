@@ -53,7 +53,7 @@ def test_load_latest_desk_cards_shape() -> None:
     repo.load_latest_snapshots.return_value = [
         _row("risk_regime", label="risk_on"),
         _row(
-            "liquidity_regime",
+            "liquidity_trend_regime",
             label="easy",
             inputs={
                 "net_liquidity": 7_000_000.0,
@@ -64,6 +64,23 @@ def test_load_latest_desk_cards_shape() -> None:
                 "M2SL_yoy_pct": 1.5,
                 "M2SL_yoy_status": "computed",
             },
+        ),
+        _row(
+            "liquidity_level_regime",
+            label="easy",
+            inputs={
+                "net_liquidity_vs_52w_pct": 2.5,
+                "WALCL_change_26w_pct": 1.0,
+                "drain_change_26w_pct": -3.0,
+                "M2SL_yoy_pct": 1.5,
+                "components_scored": 4,
+                "components_total": 4,
+            },
+        ),
+        _row(
+            "liquidity_context",
+            label="easy_easy",
+            inputs={"level": "easy", "trend": "easy", "interpretation": "Strong risk-on backdrop"},
         ),
         _row("inflation_regime", label="stable", value=3.0),
         _row(

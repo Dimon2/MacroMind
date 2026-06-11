@@ -33,6 +33,67 @@ def build_inflation_pm_overlay(observations: list[NormalizedObservation]) -> Sig
     )
 
 
+_LIQUIDITY_MATRIX: dict[str, str] = {
+    "easy_easy": "Strong risk-on backdrop",
+    "easy_neutral": "Easy backdrop, flat weekly impulse",
+    "easy_tight": "Late-cycle liquidity fade",
+    "neutral_easy": "Improving weekly impulse, neutral backdrop",
+    "neutral_neutral": "Neutral liquidity conditions",
+    "neutral_tight": "Tightening weekly impulse, neutral backdrop",
+    "tight_easy": "Early recovery / pivot",
+    "tight_neutral": "Tight backdrop, flat weekly impulse",
+    "tight_tight": "Liquidity stress",
+}
+
+
+def build_liquidity_context(
+    level: SignalResult,
+    trend: SignalResult,
+) -> SignalResult:
+    level_label = (
+        str(level.metadata.get("label"))
+        if level.status == "computed" and level.metadata.get("label")
+        else None
+    )
+    trend_label = (
+        str(trend.metadata.get("label"))
+        if trend.status == "computed" and trend.metadata.get("label")
+        else None
+    )
+
+    if level_label is None or trend_label is None:
+        missing = []
+        if level_label is None:
+            missing.append("liquidity_level_regime")
+        if trend_label is None:
+            missing.append("liquidity_trend_regime")
+        return _skipped_overlay(
+            "liquidity_context",
+            reason="missing_required_inputs",
+            inputs={"required": missing},
+        )
+
+    matrix_key = f"{level_label}_{trend_label}"
+    interpretation = _LIQUIDITY_MATRIX.get(
+        matrix_key,
+        f"{level_label.capitalize()} backdrop, {trend_label} weekly impulse",
+    )
+    as_of = max(level.as_of, trend.as_of)
+
+    return SignalResult(
+        name="liquidity_context",
+        status="computed",
+        value=None,
+        inputs={
+            "level": level_label,
+            "trend": trend_label,
+            "interpretation": interpretation,
+        },
+        metadata={"label": matrix_key},
+        as_of=as_of,
+    )
+
+
 def build_fed_rate_context(observations: list[NormalizedObservation]) -> SignalResult:
     by_key = _latest_by_series_key(observations)
     fed_obs = by_key.get("FEDFUNDS")

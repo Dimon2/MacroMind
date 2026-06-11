@@ -26,7 +26,7 @@ FRED_MONTHLY_SERIES: frozenset[str] = frozenset(
     {"CPIAUCSL", "CPILFESL", "UNRATE", "M2SL"}
 )
 FRED_MONTHLY_LIMIT = 24
-FRED_WEEKLY_LIMIT = 12
+FRED_WEEKLY_LIMIT = 60
 
 _FRED_SERIES_META: dict[str, tuple[str, str]] = {
     "CPIAUCSL": ("index", "inflation"),

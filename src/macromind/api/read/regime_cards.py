@@ -37,22 +37,48 @@ def risk_card(
 
 
 def liquidity_card(by_name: dict[str, SignalSnapshotRow]) -> dict[str, Any]:
-    row = by_name.get("liquidity_regime")
-    inputs = dict(row.inputs) if row else {}
+    level_row = by_name.get("liquidity_level_regime")
+    trend_row = by_name.get("liquidity_trend_regime")
+    context_row = by_name.get("liquidity_context")
+
+    trend_inputs = dict(trend_row.inputs) if trend_row else {}
+    level_inputs_raw = dict(level_row.inputs) if level_row else {}
+
     net_liquidity: dict[str, Any] = {
-        "level_millions": inputs.get("net_liquidity"),
-        "change_wow_pct": inputs.get("net_liquidity_change_wow_pct"),
-        "as_of": inputs.get("net_liquidity_date"),
+        "level_millions": trend_inputs.get("net_liquidity"),
+        "change_wow_pct": trend_inputs.get("net_liquidity_change_wow_pct"),
+        "as_of": trend_inputs.get("net_liquidity_date"),
     }
     m2: dict[str, Any] = {
-        "level_billions": inputs.get("M2SL_latest"),
-        "change_mom_pct": inputs.get("M2SL_change_mom_pct"),
-        "yoy_pct": inputs.get("M2SL_yoy_pct"),
-        "yoy_status": inputs.get("M2SL_yoy_status"),
+        "level_billions": trend_inputs.get("M2SL_latest") or level_inputs_raw.get("M2SL_latest"),
+        "change_mom_pct": trend_inputs.get("M2SL_change_mom_pct")
+        or level_inputs_raw.get("M2SL_change_mom_pct"),
+        "yoy_pct": trend_inputs.get("M2SL_yoy_pct") or level_inputs_raw.get("M2SL_yoy_pct"),
+        "yoy_status": trend_inputs.get("M2SL_yoy_status")
+        or level_inputs_raw.get("M2SL_yoy_status"),
     }
+    level_inputs: dict[str, Any] = {
+        "vs_52w_pct": level_inputs_raw.get("net_liquidity_vs_52w_pct"),
+        "walcl_26w_pct": level_inputs_raw.get("WALCL_change_26w_pct"),
+        "drain_26w_pct": level_inputs_raw.get("drain_change_26w_pct"),
+        "components_scored": level_inputs_raw.get("components_scored"),
+        "components_total": level_inputs_raw.get("components_total"),
+    }
+    matrix: dict[str, Any] = {"key": None, "interpretation": None}
+    if context_row and context_row.status == "computed":
+        ctx_inputs = dict(context_row.inputs) if context_row.inputs else {}
+        matrix = {
+            "key": context_row.label,
+            "interpretation": ctx_inputs.get("interpretation"),
+        }
+
     return {
-        "regime": regime_block(row),
+        "regime": regime_block(level_row),
+        "level": regime_block(level_row),
+        "trend": regime_block(trend_row),
+        "matrix": matrix,
         "net_liquidity": net_liquidity,
+        "level_inputs": level_inputs,
         "m2": m2,
         "series_keys": ["WALCL", "WTREGEN", "RRPONTSYD", "M2SL"],
     }

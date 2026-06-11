@@ -84,7 +84,7 @@ def test_lab_regime_compute_mocked(client: TestClient, monkeypatch) -> None:
     assert body["cards"]["risk"]["regime"]["label"] == "risk_off"
     assert body["cards"]["credit"]["regime"]["label"] == "stressed"
     assert "signals" in body
-    assert body["coverage"]["total"] == 6
+    assert body["coverage"]["total"] == 8
 
 
 def test_lab_regime_compute_invalid_date(client: TestClient) -> None:

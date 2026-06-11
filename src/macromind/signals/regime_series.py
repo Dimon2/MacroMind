@@ -13,4 +13,4 @@ REGIME_SERIES_IDS: tuple[str, ...] = (
     "M2SL",
 )
 
-REGIME_HISTORY_LAST_N = 15
+REGIME_HISTORY_LAST_N = 60
