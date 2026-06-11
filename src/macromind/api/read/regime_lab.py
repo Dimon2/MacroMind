@@ -22,6 +22,8 @@ from macromind.signals.stress_episodes import episode_for_date, list_episodes
 
 LAB_MIN_DATE = date(1993, 1, 29)
 WTREGEN_AVAILABLE_FROM = date(2008, 12, 18)
+# FRED BAML HY OAS (BAMLH0A0HYM2 / BAMLC0A4CBBBEY) history starts ~2023-06-12
+BAML_HY_AVAILABLE_FROM = date(2023, 6, 12)
 
 REGIME_SIGNAL_NAMES: tuple[str, ...] = (
     "risk_regime",
@@ -126,6 +128,11 @@ def _build_data_notes(query_date: date, results: list[SignalResult]) -> list[str
     if query_date < WTREGEN_AVAILABLE_FROM:
         notes.append(
             f"liquidity may be skipped: WTREGEN unavailable before {WTREGEN_AVAILABLE_FROM.isoformat()}"
+        )
+    if query_date < BAML_HY_AVAILABLE_FROM:
+        notes.append(
+            f"credit_regime may be skipped: FRED HY OAS series unavailable before "
+            f"{BAML_HY_AVAILABLE_FROM.isoformat()}"
         )
     notes.append(
         "growth_regime uses latest published UNRATE (monthly); may lag market stress on daily dates"
