@@ -17,6 +17,9 @@ export function Nav() {
       <NavLink to="/desk" className={linkClass}>
         Desk
       </NavLink>
+      <NavLink to="/lab/regimes" className={linkClass}>
+        Lab
+      </NavLink>
     </nav>
   )
 }

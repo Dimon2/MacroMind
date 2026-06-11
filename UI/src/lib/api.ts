@@ -1,5 +1,6 @@
 import type { DeskData } from '../types/desk'
 import type { MacroSeriesData } from '../types/macro'
+import type { RegimeLabData, RegimeLabEpisodesData } from '../types/regimeLab'
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? '/api').replace(/\/$/, '')
 
@@ -47,4 +48,13 @@ export function fetchMacroSeries(
   const query = params.toString()
   const path = `/macro/${encodeURIComponent(seriesId)}${query ? `?${query}` : ''}`
   return apiGet<MacroSeriesData>(path)
+}
+
+export function fetchRegimeEpisodes(): Promise<RegimeLabEpisodesData> {
+  return apiGet<RegimeLabEpisodesData>('/lab/regime/episodes')
+}
+
+export function fetchRegimeCompute(date: string): Promise<RegimeLabData> {
+  const params = new URLSearchParams({ date })
+  return apiGet<RegimeLabData>(`/lab/regime/compute?${params}`)
 }
