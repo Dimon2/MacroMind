@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query
@@ -12,12 +13,21 @@ from macromind.api.read.macro import (
     SeriesNotFoundError,
     load_macro_series,
 )
+from macromind.api.read.regime_lab import (
+    FredApiKeyMissingError,
+    InvalidQueryDateError,
+    compute_regime_lab,
+    get_episodes,
+)
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
         title="MacroMind API",
-        description="Read-only API over persisted macro data and signal snapshots.",
+        description=(
+            "Read-only API: /desk and /macro use persisted DB; "
+            "/lab/regime replays historical point-in-time regime computation."
+        ),
         version="0.1.0",
     )
 
@@ -58,5 +68,24 @@ def create_app() -> FastAPI:
                 status_code=404,
                 detail="series not found or no observations",
             )
+
+    @app.get("/lab/regime/episodes")
+    def lab_regime_episodes() -> dict:
+        return get_episodes()
+
+    @app.get("/lab/regime/compute")
+    def lab_regime_compute(
+        query_date: str = Query(..., alias="date", description="ISO date YYYY-MM-DD"),
+    ) -> dict:
+        try:
+            as_of = date.fromisoformat(query_date)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail="invalid date format; use YYYY-MM-DD") from exc
+        try:
+            return compute_regime_lab(as_of)
+        except InvalidQueryDateError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        except FredApiKeyMissingError as exc:
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     return app

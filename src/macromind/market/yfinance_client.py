@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 import pandas as pd
@@ -63,6 +63,31 @@ def _optional_float(row: pd.Series, column: str) -> float | None:
 
 
 class YFinanceClient:
+    def get_bar_as_of(
+        self, symbol: str, as_of: date, *, lookback_days: int = 14
+    ) -> LatestBar | None:
+        start = as_of - timedelta(days=lookback_days)
+        end = as_of + timedelta(days=1)
+        ticker = yf.Ticker(symbol)
+        history = ticker.history(
+            start=start.isoformat(),
+            end=end.isoformat(),
+            interval="1d",
+            auto_adjust=True,
+        )
+        if history is None or history.empty:
+            return None
+
+        frame = history.dropna(subset=["Close"])
+        if frame.empty:
+            return None
+
+        mask = [pd.Timestamp(idx).date() <= as_of for idx in frame.index]
+        subset = frame.loc[mask]
+        if subset.empty:
+            return None
+        return parse_latest_bar(subset, symbol=symbol)
+
     def get_latest_bar(self, symbol: str) -> LatestBar | None:
         ticker = yf.Ticker(symbol)
         history = ticker.history(period="5d", interval="1d", auto_adjust=True)

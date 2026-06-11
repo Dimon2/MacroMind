@@ -1,8 +1,10 @@
 from datetime import date
+from unittest.mock import MagicMock
 
 import httpx
 
 from macromind.macro.fred_client import (
+    FredClient,
     _retry_after_seconds,
     parse_latest_observation,
     parse_observations,
@@ -54,3 +56,18 @@ def test_retry_after_seconds_exponential_fallback() -> None:
     assert _retry_after_seconds(response, 0) == 15.0
     assert _retry_after_seconds(response, 2) == 60.0
     assert _retry_after_seconds(response, 10) == 120.0
+
+
+def test_get_observations_passes_observation_end() -> None:
+    client = FredClient(api_key="test-key")
+    client._request = MagicMock(return_value={"observations": []})  # type: ignore[method-assign]
+    client.get_observations(
+        "UNRATE",
+        limit=5,
+        observation_end=date(2020, 3, 16),
+    )
+    client._request.assert_called_once()
+    params = client._request.call_args[0][1]
+    assert params["observation_end"] == "2020-03-16"
+    assert params["limit"] == 5
+    client.close()

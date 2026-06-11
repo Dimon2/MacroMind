@@ -131,16 +131,24 @@ class FredClient:
         return series_list[0]
 
     def get_observations(
-        self, series_id: str, *, limit: int = 10, sort_order: str = "desc"
+        self,
+        series_id: str,
+        *,
+        limit: int = 10,
+        sort_order: str = "desc",
+        observation_start: date | None = None,
+        observation_end: date | None = None,
     ) -> list[dict[str, Any]]:
-        payload = self._request(
-            "/series/observations",
-            {
-                "series_id": series_id,
-                "sort_order": sort_order,
-                "limit": limit,
-            },
-        )
+        params: dict[str, Any] = {
+            "series_id": series_id,
+            "sort_order": sort_order,
+            "limit": limit,
+        }
+        if observation_start is not None:
+            params["observation_start"] = observation_start.isoformat()
+        if observation_end is not None:
+            params["observation_end"] = observation_end.isoformat()
+        payload = self._request("/series/observations", params)
         return payload.get("observations", [])
 
     def get_latest_observation(
