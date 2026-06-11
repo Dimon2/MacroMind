@@ -14,11 +14,13 @@ YFINANCE_SOURCE = "yfinance"
 
 FRED_LAB_SERIES: tuple[str, ...] = (
     *REGIME_SERIES_IDS,
-    "BAMLH0A0HYM2",
     "T10Y2Y",
     "DGS10",
     "DGS2",
 )
+
+CREDIT_HY_SERIES_PRIMARY = "BAMLH0A0HYM2"
+CREDIT_HY_SERIES_FALLBACK = "BAMLC0A4CBBBEY"
 
 FRED_MONTHLY_SERIES: frozenset[str] = frozenset(
     {"CPIAUCSL", "CPILFESL", "UNRATE", "M2SL"}
@@ -34,10 +36,11 @@ _FRED_SERIES_META: dict[str, tuple[str, str]] = {
     "RRPONTSYD": ("billions_usd", "liquidity"),
     "WTREGEN": ("millions_usd", "liquidity"),
     "M2SL": ("billions_usd", "liquidity"),
-    "BAMLH0A0HYM2": ("percent", "credit"),
     "T10Y2Y": ("percent", "rates"),
     "DGS10": ("percent", "rates"),
     "DGS2": ("percent", "rates"),
+    CREDIT_HY_SERIES_PRIMARY: ("percent", "credit"),
+    CREDIT_HY_SERIES_FALLBACK: ("percent", "credit"),
 }
 
 MARKET_LAB_SYMBOLS: tuple[tuple[str, str], ...] = (
@@ -73,6 +76,7 @@ def build_observations_as_of(
     with _fred_client(fred) as client:
         for series_id in FRED_LAB_SERIES:
             datapoints.extend(_fetch_fred_series(client, series_id, as_of, fetched_at))
+        datapoints.extend(_fetch_credit_hy_series(client, as_of, fetched_at))
 
     yf_client = yf or YFinanceClient()
     for indicator, symbol in MARKET_LAB_SYMBOLS:
@@ -109,6 +113,36 @@ class _NoCloseFred:
 
     def __exit__(self, *args: object) -> None:
         return None
+
+
+def _fetch_credit_hy_series(
+    client: FredClient,
+    as_of: date,
+    fetched_at: datetime,
+) -> list[DataPoint]:
+    for series_id in (CREDIT_HY_SERIES_PRIMARY, CREDIT_HY_SERIES_FALLBACK):
+        rows = _fetch_fred_series(client, series_id, as_of, fetched_at)
+        if not rows:
+            continue
+        if series_id == CREDIT_HY_SERIES_PRIMARY:
+            return rows
+        return [
+            DataPoint(
+                source=row.source,
+                indicator=CREDIT_HY_SERIES_PRIMARY,
+                value=row.value,
+                unit=row.unit,
+                period=row.period,
+                fetched_at=row.fetched_at,
+                metadata={
+                    **row.metadata,
+                    "resolved_series_id": series_id,
+                    "requested_series_id": CREDIT_HY_SERIES_PRIMARY,
+                },
+            )
+            for row in rows
+        ]
+    return []
 
 
 def _fetch_fred_series(

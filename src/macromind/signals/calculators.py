@@ -23,8 +23,8 @@ INFLATION_YOY_RISING_PCT = 3.5
 INFLATION_YOY_FALLING_PCT = 2.5
 
 # Growth (UNRATE Δ pp, curve; SPY optional context in inputs only)
-GROWTH_UNRATE_EXPANDING_PP = -0.05
-GROWTH_UNRATE_CONTRACTING_PP = 0.05
+GROWTH_UNRATE_EXPANDING_PP = -0.15
+GROWTH_UNRATE_CONTRACTING_PP = 0.15
 
 # Credit HY OAS spread (percent)
 CREDIT_RELAXED_PCT = 3.5
@@ -69,6 +69,8 @@ def compute_risk_regime(observations: list[NormalizedObservation]) -> SignalResu
     if score > 0:
         label = "risk_on"
     elif score < 0:
+        label = "risk_off"
+    elif vix_value >= 25:
         label = "risk_off"
 
     return SignalResult(

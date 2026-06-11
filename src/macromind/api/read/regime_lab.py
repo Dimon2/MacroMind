@@ -9,6 +9,7 @@ from macromind.api.read.regime_cards import (
     inflation_card,
     latest_dp_from_signal_inputs,
     liquidity_card,
+    merge_market_datapoints,
     risk_card,
 )
 from macromind.api.serializers import SCHEMA_VERSION
@@ -71,7 +72,10 @@ def compute_regime_lab(query_date: date) -> dict[str, Any]:
     credit_result = by_name_result.get("credit_regime")
     risk_inputs = dict(risk_result.inputs or {}) if risk_result else {}
     credit_inputs = dict(credit_result.inputs or {}) if credit_result else {}
-    latest_dp = latest_dp_from_signal_inputs(risk_inputs, credit_inputs, fetched_at=fetched_at)
+    latest_dp = merge_market_datapoints(
+        latest_dp_from_signal_inputs(risk_inputs, credit_inputs, fetched_at=fetched_at),
+        observations,
+    )
 
     market = by_name.get("market_state")
     composite = market.label if market and market.status == "computed" else None

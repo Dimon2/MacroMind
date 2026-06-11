@@ -109,6 +109,35 @@ def test_compute_risk_regime_skips_when_missing_inputs() -> None:
     assert result.reason == "missing_required_inputs"
 
 
+def test_compute_risk_regime_elevated_vix_tiebreaker() -> None:
+    observations = [
+        NormalizedObservation(
+            source="yfinance",
+            series_key="SPY",
+            observation_date=date(2022, 6, 15),
+            fetched_at=_FETCHED,
+            value_kind="level",
+            value=370.0,
+            unit="usd",
+            metadata={"change_pct": 1.4},
+        ),
+        NormalizedObservation(
+            source="yfinance",
+            series_key="VIX",
+            observation_date=date(2022, 6, 15),
+            fetched_at=_FETCHED,
+            value_kind="level",
+            value=29.6,
+            unit="index",
+            metadata={},
+        ),
+    ]
+    result = compute_risk_regime(observations)
+    assert result.status == "computed"
+    assert result.value == 0.0
+    assert result.metadata["label"] == "risk_off"
+
+
 def test_compute_liquidity_regime_net_liquidity_easy() -> None:
     observations = [
         *_net_liquidity_obs(date(2026, 6, 4), walcl=8_100_000.0, tga=500_000.0, rrp_billions=500.0),

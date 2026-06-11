@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from macromind.db.signal_snapshot import SignalSnapshotRow
+from macromind.market.normalized_observation import NormalizedObservation
 from macromind.models import DataPoint
 
 
@@ -164,3 +165,38 @@ def latest_dp_from_signal_inputs(
             metadata={"change_pct": hyg_chg},
         )
     return latest
+
+
+def merge_market_datapoints(
+    latest_dp: dict[str, DataPoint],
+    observations: list[NormalizedObservation],
+) -> dict[str, DataPoint]:
+    merged = dict(latest_dp)
+    market_keys = ("SPY", "VIX", "HYG", "BAMLH0A0HYM2")
+    best: dict[str, NormalizedObservation] = {}
+    for obs in observations:
+        if obs.series_key not in market_keys:
+            continue
+        current = best.get(obs.series_key)
+        if current is None or (obs.observation_date, obs.fetched_at) > (
+            current.observation_date,
+            current.fetched_at,
+        ):
+            best[obs.series_key] = obs
+
+    for key, obs in best.items():
+        metadata = dict(obs.metadata or {})
+        if key in ("SPY", "HYG"):
+            existing = merged.get(key)
+            if existing is not None:
+                metadata.setdefault("change_pct", (existing.metadata or {}).get("change_pct"))
+        merged[key] = DataPoint(
+            source=obs.source,
+            indicator=obs.series_key,
+            value=obs.value,
+            unit=obs.unit,
+            period=obs.observation_date.isoformat(),
+            fetched_at=obs.fetched_at,
+            metadata=metadata,
+        )
+    return merged

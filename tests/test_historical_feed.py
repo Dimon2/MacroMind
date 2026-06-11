@@ -81,3 +81,40 @@ def test_build_observations_as_of_fred_and_market(monkeypatch) -> None:
     assert "SPY" in series_keys
     assert "UNRATE" in series_keys
     assert all(obs.observation_date <= as_of for obs in observations)
+
+
+def test_fetch_credit_hy_series_uses_fallback(monkeypatch) -> None:
+    from macromind.signals.historical_feed import (
+        CREDIT_HY_SERIES_FALLBACK,
+        CREDIT_HY_SERIES_PRIMARY,
+        _fetch_credit_hy_series,
+    )
+
+    as_of = date(2020, 3, 16)
+    fetched_at = datetime(2020, 3, 16, 23, 59, 59, tzinfo=timezone.utc)
+    calls: list[str] = []
+
+    def fake_fetch(_client, series_id, _as_of, _fetched_at):
+        calls.append(series_id)
+        if series_id == CREDIT_HY_SERIES_PRIMARY:
+            return []
+        from macromind.models import DataPoint
+
+        return [
+            DataPoint(
+                source="fred",
+                indicator=series_id,
+                value=5.5,
+                unit="percent",
+                period="2020-03-13",
+                fetched_at=fetched_at,
+                metadata={"category": "credit"},
+            )
+        ]
+
+    monkeypatch.setattr("macromind.signals.historical_feed._fetch_fred_series", fake_fetch)
+    rows = _fetch_credit_hy_series(MagicMock(), as_of, fetched_at)
+    assert calls == [CREDIT_HY_SERIES_PRIMARY, CREDIT_HY_SERIES_FALLBACK]
+    assert len(rows) == 1
+    assert rows[0].indicator == CREDIT_HY_SERIES_PRIMARY
+    assert rows[0].metadata["resolved_series_id"] == CREDIT_HY_SERIES_FALLBACK
